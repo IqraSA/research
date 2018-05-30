@@ -1,4 +1,6 @@
-import random, sys
+from Crypto.Hash import SHA256
+from binascii import hexlify
+import random
 
 
 def normal_distribution(mean, standev):
@@ -35,3 +37,27 @@ def transform(dist, xformer):
         return xformer(dist())
 
     return f
+
+
+def to_hex(s):
+    return hexlify(s).decode('utf-8')
+
+memo = {}
+
+def sha3(x):
+    if x not in memo:
+        memo[x] = SHA256.new(data=x).digest()
+    return memo[x]
+
+def hash_to_int(h):
+    o = 0
+    for c in h:
+        o = (o << 8) + ord(c)
+    return o
+
+
+def checkpow(work, nonce, powdiff):
+    # Discrete log PoW, lolz
+    # Quadratic nonresidues only
+    return pow(work, nonce, 65537) * powdiff < 65537 * 2 and pow(nonce, 32768, 65537) == 65536
+

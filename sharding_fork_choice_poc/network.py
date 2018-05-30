@@ -1,4 +1,4 @@
-from distributions import transform, normal_distribution
+from tools import transform, normal_distribution
 import random
 
 

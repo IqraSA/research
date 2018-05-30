@@ -1,129 +1,10 @@
-import os
-from binascii import hexlify
-from Crypto.Hash import keccak
+from block import BeaconBlock, MainChainBlock, ShardCollation, BlockMakingRequest, Sig
+from tools import to_hex, checkpow
 import random
-
-def to_hex(s):
-    return hexlify(s).decode('utf-8')
-
-memo = {}
-
-def sha3(x):
-    if x not in memo:
-        memo[x] = keccak.new(digest_bits=256, data=x).digest()
-    return memo[x]
-
-def hash_to_int(h):
-    o = 0
-    for c in h:
-        o = (o << 8) + c
-    return o
-
-NOTARIES = 40
-BASE_TS_DIFF = 1
-SKIP_TS_DIFF = 6
-SAMPLE = 9
-MIN_SAMPLE = 5
-POWDIFF = 30 * NOTARIES
-SHARDS = 4
-
-def checkpow(work, nonce):
-    # Discrete log PoW, lolz
-    # Quadratic nonresidues only
-    return pow(work, nonce, 65537) * POWDIFF < 65537 * 2 and pow(nonce, 32768, 65537) == 65536
-
-class MainChainBlock():
-    def __init__(self, parent, pownonce, ts):
-        self.parent_hash = parent.hash if parent else (b'\x00' * 32)
-        assert isinstance(self.parent_hash, bytes)
-        self.hash = sha3(self.parent_hash + str(pownonce).encode('utf-8'))
-        self.ts = ts
-        if parent:
-            assert checkpow(parent.pownonce, pownonce)
-            assert self.ts >= parent.ts
-        self.pownonce = pownonce
-        self.number = 0 if parent is None else parent.number + 1
-            
-
-# Not a full RANDAO; stub for now
-class BeaconBlock():
-    def __init__(self, parent, proposer, ts, sigs, main_chain_ref):
-        self.contents = os.urandom(32)
-        self.parent_hash = parent.hash if parent else (b'\x11' * 32)
-        self.hash = sha3(self.parent_hash + self.contents)
-        self.ts = ts
-        self.sigs = sigs
-        self.number = parent.number + 1 if parent else 0
-        self.main_chain_ref = main_chain_ref.hash if main_chain_ref else parent.main_chain_ref
-
-        if parent:
-            i = parent.child_proposers.index(proposer)
-            assert self.ts >= parent.ts + BASE_TS_DIFF + i * SKIP_TS_DIFF
-            assert len(sigs) >= parent.notary_req
-            for sig in sigs:
-                assert sig.target_hash == self.parent_hash
-
-        # Calculate child proposers
-        v = hash_to_int(sha3(self.contents))
-        self.child_proposers = []
-        while v > 0:
-            self.child_proposers.append(v % NOTARIES)
-            v //= NOTARIES
-
-        # Calculate notaries
-        first = parent and proposer == parent.child_proposers[0]
-        self.notary_req = 0 if first else MIN_SAMPLE
-        v = hash_to_int(sha3(self.contents + b':n'))
-        self.notaries = []
-        for i in range(SAMPLE if first else SAMPLE):
-            self.notaries.append(v % NOTARIES)
-            v //= NOTARIES
-
-        # Calculate shard proposers
-        v = hash_to_int(sha3(self.contents + b':s'))
-        self.shard_proposers = []
-        for i in range(SHARDS):
-            self.shard_proposers.append(v % NOTARIES)
-            v //= NOTARIES
-        
-
-class Sig():
-    def __init__(self, proposer, target):
-        self.proposer = proposer
-        self.target_hash = target.hash
-        self.hash = os.urandom(32)
-        assert self.proposer in target.notaries
-
-class ShardCollation():
-    def __init__(self, shard_id, parent, proposer, beacon_ref, ts):
-        self.proposer = proposer
-        self.parent_hash = parent.hash if parent else (bytes([40 + shard_id]) * 32)
-        self.hash = sha3(self.parent_hash + str(self.proposer).encode('utf-8') + beacon_ref.hash)
-        self.ts = ts
-        self.shard_id = shard_id
-        self.number = parent.number + 1 if parent else 0
-        self.beacon_ref = beacon_ref.hash
-
-        if parent:
-            assert self.shard_id == parent.shard_id
-            assert self.proposer == beacon_ref.shard_proposers[self.shard_id]
-            assert self.ts >= parent.ts
-
-        assert self.ts >= beacon_ref.ts
-
-main_genesis = MainChainBlock(None, 59049, 0)
-beacon_genesis = BeaconBlock(None, 1, 0, [], main_genesis)
-shard_geneses = [ShardCollation(i, None, 0, beacon_genesis, 0) for i in range(SHARDS)]
-
-class BlockMakingRequest():
-    def __init__(self, parent, ts):
-        self.parent = parent
-        self.ts = ts
-        self.hash = os.urandom(32)
 
 class Node():
 
-    def __init__(self, _id, network, sleepy=False, careless=False):
+    def __init__(self, _id, network, nb_shards, nb_notaries, powdiff, main_genesis, beacon_genesis, shard_geneses, sleepy=False, careless=False, base_ts_diff=1, skip_ts_diff=6):
         self.blocks = {
             beacon_genesis.hash: beacon_genesis,
             main_genesis.hash: main_genesis
@@ -144,11 +25,16 @@ class Node():
         self.processed = {}
         self.sleepy = sleepy
         self.careless = careless
+        self.powdiff = powdiff
+        self.nb_shards = nb_shards
+        self.nb_notaries = nb_notaries
+        self.base_ts_diff = base_ts_diff
+        self.skip_ts_diff = skip_ts_diff
 
     def broadcast(self, x):
         if self.sleepy and self.ts:
             return
-        #self.log("Broadcasting %s %s" % ("block" if isinstance(x, BeaconBlock) else "sig", to_hex(x.hash[:4])))
+        self.log("Broadcasting %s %s" % ("block" if isinstance(x, BeaconBlock) else "sig", to_hex(x.hash[:4])))
         self.network.broadcast(self, x)
         self.on_receive(x)
 
@@ -161,7 +47,7 @@ class Node():
         if obj.hash in self.processed and not reprocess:
             return
         self.processed[obj.hash] = True
-        #self.log("Processing %s %s" % ("block" if isinstance(obj, BeaconBlock) else "sig", to_hex(obj.hash[:4])))
+        self.log("Processing %s %s" % ("block" if isinstance(obj, BeaconBlock) else "sig", to_hex(obj.hash[:4])))
         if isinstance(obj, BeaconBlock):
             return self.on_receive_beacon_block(obj)
         elif isinstance(obj, MainChainBlock):
@@ -179,13 +65,13 @@ class Node():
                     #mc_ref = self.blocks[mc_ref].parent_hash
                 x = BeaconBlock(self.blocks[obj.parent], self.id, self.ts,
                                 self.sigs[obj.parent] if obj.parent in self.sigs else [],
-                                self.blocks[self.main_chain[-1]])
+                                self.blocks[self.main_chain[-1]], self.nb_notaries, self.nb_shards)
                 self.log("Broadcasting block %s" % to_hex(x.hash[:4]))
                 self.broadcast(x)
 
     def add_to_timequeue(self, obj):
         i = 0
-        while i < len(self.timequeue) and self.timequeue[i].ts < obj.ts: 
+        while i < len(self.timequeue) and self.timequeue[i].ts < obj.ts:
             i += 1
         self.timequeue.insert(i, obj)
 
@@ -241,7 +127,7 @@ class Node():
             if reorging:
                 self.recalculate_head(self.beacon_chain,
                     lambda b: isinstance(b, BeaconBlock) and b.main_chain_ref in self.main_chain)
-                for i in range(SHARDS):
+                for i in range(self.nb_shards):
                     self.recalculate_head(self.shard_chains[i],
                         lambda b: isinstance(b, ShardCollation) and b.shard_id == i and b.beacon_ref in self.beacon_chain)
         # Add child record
@@ -261,11 +147,11 @@ class Node():
         reorging = (new_head.parent_hash != self.beacon_chain[-1])
         self.change_head(self.beacon_chain, new_head)
         if reorging:
-            for i in range(SHARDS):
+            for i in range(self.nb_shards):
                 self.recalculate_head(self.shard_chains[i],
                     lambda b: isinstance(b, ShardCollation) and b.shard_id == i and b.beacon_ref in self.beacon_chain)
         # Produce shard collations?
-        for s in range(SHARDS):
+        for s in range(self.nb_shards):
             if self.id == new_head.shard_proposers[s]:
                 sc = ShardCollation(s, self.blocks[self.shard_chains[s][-1]], self.id, new_head, self.ts)
                 assert sc.beacon_ref == new_head.hash
@@ -302,7 +188,7 @@ class Node():
                 self.change_beacon_head(block)
             if self.id in self.blocks[block.hash].child_proposers:
                 my_index = self.blocks[block.hash].child_proposers.index(self.id)
-                target_ts = block.ts + BASE_TS_DIFF + my_index * SKIP_TS_DIFF
+                target_ts = block.ts + self.base_ts_diff + my_index * self.skip_ts_diff
                 self.add_to_timequeue(BlockMakingRequest(block.hash, target_ts))
         # Add child record
         self.add_to_multiset(self.children, block.parent_hash, block.hash)
@@ -319,7 +205,7 @@ class Node():
                 self.change_beacon_head(block)
             if self.id in block.child_proposers:
                 my_index = block.child_proposers.index(self.id)
-                target_ts = block.ts + BASE_TS_DIFF + my_index * SKIP_TS_DIFF
+                target_ts = block.ts + self.base_ts_diff + my_index * self.skip_ts_diff
                 self.log("Making block request for %.1f" % target_ts)
                 self.add_to_timequeue(BlockMakingRequest(block.hash, target_ts))
         # Rebroadcast
@@ -349,8 +235,8 @@ class Node():
 
     def tick(self):
         if self.ts == 0:
-            if self.id in beacon_genesis.notaries:
-                self.broadcast(Sig(self.id, beacon_genesis))
+            if self.id in self.blocks[self.beacon_chain[0]].notaries:
+                self.broadcast(Sig(self.id, self.blocks[self.beacon_chain[0]]))
         self.ts += 0.1
         self.log("Tick: %.1f" % self.ts, lvl=1)
         # Process time queue
@@ -359,5 +245,5 @@ class Node():
         # Attempt to mine a main chain block
         pownonce = random.randrange(65537)
         mchead = self.blocks[self.main_chain[-1]]
-        if checkpow(mchead.pownonce, pownonce):
-            self.broadcast(MainChainBlock(mchead, pownonce, self.ts))
+        if checkpow(mchead.pownonce, pownonce, self.powdiff):
+            self.broadcast(MainChainBlock(mchead, pownonce, self.ts, self.powdiff))
