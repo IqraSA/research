@@ -3,6 +3,11 @@ from node import Node, BeaconBlock, MainChainBlock, ShardCollation
 from plot import plotChain
 
 
+##  This method runs the whole simulation.
+#   This method first instanciates a network, a group of notaries, generates
+#   the list of peers for each agent and then run the network for a number of
+#   steps.  Results for each notary are printed in the end and a plot is
+#   generated.
 def run():
     # Define main variables
     nb_notaries = 40
