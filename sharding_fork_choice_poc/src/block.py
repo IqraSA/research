@@ -1,8 +1,17 @@
 from tools import to_hex, sha3, hash_to_int, checkpow
 import os
 
-
+## MainChainBlock class:
+#
+#  This class represents a block in the main chain
 class MainChainBlock():
+    ## The Constructor.
+    #  This method initializes the block.
+    #  @param self      Pointer to this block in the main chain.
+    #  @param parent    Pointer to the parent block in the main chain.
+    #  @param pownonce  Proof of work nonce for this block.
+    #  @param ts        Time for this block.
+    #  @param powdiff   Proof of work difference for this block.
     def __init__(self, parent, pownonce, ts, powdiff):
         self.parent_hash = parent.hash if parent else (b'\x00' * 32)
         assert isinstance(self.parent_hash, bytes)
