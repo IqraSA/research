@@ -24,8 +24,21 @@ class MainChainBlock():
         self.number = 0 if parent is None else parent.number + 1
 
 
-# Not a full RANDAO; stub for now
+##  This class represents a block in the beacon chain
+#   Not a full RANDAO; stub for now
 class BeaconBlock():
+    ##  This method is the constructor which initializes the block.
+    #   @param self             Pointer to this block in the beacon chain.
+    #   @param parent           Pointer to the parent block in the beacon chain.
+    #   @param ts               Time for this block.
+    #   @param sigs             Signatures for this block.
+    #   @param main_chain_ref   Reference to the main chain.
+    #   @param nb_notaries      Number of notaries.
+    #   @param nb_shards        Number of shards.
+    #   @param sample           TBD
+    #   @param min_sample       TBD
+    #   @param base_ts_diff     TBD
+    #   @param skip_ts_diff     TBD
     def __init__(self, parent, proposer, ts, sigs, main_chain_ref, nb_notaries, nb_shards, sample = 9, min_sample = 5, base_ts_diff=1, skip_ts_diff=6):
         self.contents = os.urandom(32)
         self.parent_hash = parent.hash if parent else (b'\x11' * 32)
@@ -66,7 +79,15 @@ class BeaconBlock():
             v //= nb_notaries
 
 
+## This class represents a shard collation.
 class ShardCollation():
+    ##  This method is the constructor which initializes the collation.
+    #   @param self         Pointer to this collation in the shard.
+    #   @param shard_id     ID of the shard.
+    #   @param parent       Pointer to the parent collation in the shard.
+    #   @param proposer     The proposer of the collation.
+    #   @param beacon_ref   Reference to the main chain.
+    #   @param ts           Time for this collation.
     def __init__(self, shard_id, parent, proposer, beacon_ref, ts):
         self.proposer = proposer
         self.parent_hash = parent.hash if parent else (bytes([40 + shard_id]) * 32)
@@ -84,14 +105,24 @@ class ShardCollation():
         assert self.ts >= beacon_ref.ts
 
 
+##  This class represents a block making request.
 class BlockMakingRequest():
+    ##  This method is the constructor which initializes the block.
+    #   @param self         Pointer to this block request.
+    #   @param parent       Pointer to the parent block.
+    #   @param ts           Time for this block.
     def __init__(self, parent, ts):
         self.parent = parent
         self.ts = ts
         self.hash = os.urandom(32)
 
 
+##  This class represents a signature.
 class Sig():
+    ##  This method is the constructor which initializes the signature
+    #   @param self         Pointer to this signature.
+    #   @param proposer     Pointer to signature proposer.
+    #   @param target       Pointer to target.
     def __init__(self, proposer, target):
         self.proposer = proposer
         self.target_hash = target.hash
