@@ -1,5 +1,6 @@
 SRC		= src
 DOC		= doc
+RSL		= results
 
 
 all: 		test
@@ -15,7 +16,7 @@ doc:
 
 
 clean:
-		$(RM) -rf $(DOC)/*/*
+		$(RM) -rf $(DOC)/*/* $(SRC)/*.pyc $(RSL)/*
 
 
 .PHONY:		test doc clean

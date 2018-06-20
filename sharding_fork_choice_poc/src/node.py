@@ -22,7 +22,6 @@ class Node():
     #   @param base_ts_diff     TBD.
     #   @param skip_ts_diff     TBD.
     def __init__(self, _id, network, nb_shards, nb_notaries, powdiff, main_genesis, beacon_genesis, shard_geneses, sleepy=False, careless=False, base_ts_diff=1, skip_ts_diff=6):
-    genesis, shard_geneses, sleepy=False, careless=False, base_ts_diff=1, skip_ts_diff=6):
         self.blocks = {
             beacon_genesis.hash: beacon_genesis,
             main_genesis.hash: main_genesis
@@ -49,13 +48,25 @@ class Node():
         self.base_ts_diff = base_ts_diff
         self.skip_ts_diff = skip_ts_diff
 
-    def broadcast(self, x):
-        if self.sleepy and self.ts:
-            return
-        self.log("Broadcasting %s %s" % ("block" if isinstance(x, BeaconBlock) else "sig", to_hex(x.hash[:4])))
-        self.network.broadcast(self, x)
-        self.on_receive(x)
+    ##  This method broadcast a message to all the nodes in the network.
+    #   @param self Pointer to this node.
+    #   @param obj  Message to be broadcasted
+    def broadcast(self, obj):
+        self.log("Broadcasting %s %s" % ("block" if isinstance(obj, BeaconBlock) else "sig", to_hex(obj.hash[:4])), lvl=3)
+        #self.network.broadcast(self, x)
+        for p in self.network.peers[self.id]:
+            recv_time = self.network.time + self.network.latency_distribution_sample()
+            if recv_time not in self.network.objqueue:
+                self.network.objqueue[recv_time] = []
+            self.network.objqueue[recv_time].append((p, obj))
+        #self.on_receive(obj)
 
+
+    ##  This method logs an event in the standard output
+    #   @param self     Pointer to this node
+    #   @param words    Message to be logged
+    #   @param lvl      Verbosity level
+    #   @param all      Set to True if all nodes should log this event
     def log(self, words, lvl=3, all=False):
         #if "Tick:" != words[:5] or self.id == 0:
         if (self.id == 0 or all) and lvl >= 2:
@@ -64,8 +75,10 @@ class Node():
     def on_receive(self, obj, reprocess=False):
         if obj.hash in self.processed and not reprocess:
             return
+        if random.random() > self.network.reliability:
+            return
         self.processed[obj.hash] = True
-        self.log("Processing %s %s" % ("block" if isinstance(obj, BeaconBlock) else "sig", to_hex(obj.hash[:4])))
+        self.log("Processing %s %s" % ("block" if isinstance(obj, BeaconBlock) else "sig", to_hex(obj.hash[:4])), lvl=1)
         if isinstance(obj, BeaconBlock):
             return self.on_receive_beacon_block(obj)
         elif isinstance(obj, MainChainBlock):
@@ -84,8 +97,9 @@ class Node():
                 x = BeaconBlock(self.blocks[obj.parent], self.id, self.ts,
                                 self.sigs[obj.parent] if obj.parent in self.sigs else [],
                                 self.blocks[self.main_chain[-1]], self.nb_notaries, self.nb_shards)
-                self.log("Broadcasting block %s" % to_hex(x.hash[:4]))
+                self.log("Broadcasting block %s" % to_hex(x.hash[:4]), lvl=1)
                 self.broadcast(x)
+                self.on_receive(x)
 
     def add_to_timequeue(self, obj):
         i = 0
@@ -136,7 +150,7 @@ class Node():
         if block.parent_hash not in self.blocks:
             self.add_to_multiset(self.parentqueue, block.parent_hash, block)
             return None
-        self.log("Processing main chain block %s" % to_hex(block.hash[:4]))
+        self.log("Processing main chain block %s" % to_hex(block.hash[:4]), lvl=1)
         self.blocks[block.hash] = block
         # Reorg the main chain if new head
         if block.number > self.blocks[self.main_chain[-1]].number:
@@ -152,7 +166,7 @@ class Node():
         self.add_to_multiset(self.children, block.parent_hash, block.hash)
         # Final steps
         self.process_children(block.hash)
-        self.network.broadcast(self, block)
+        self.broadcast(block)
 
     def is_descendant(self, a, b):
         a, b = self.blocks[a], self.blocks[b]
@@ -161,7 +175,7 @@ class Node():
         return a.hash == b.hash
 
     def change_beacon_head(self, new_head):
-        self.log("Changed beacon head: %s" % new_head.number)
+        self.log("Changed beacon head: %s" % new_head.number, lvl=1)
         reorging = (new_head.parent_hash != self.beacon_chain[-1])
         self.change_head(self.beacon_chain, new_head)
         if reorging:
@@ -175,6 +189,7 @@ class Node():
                 assert sc.beacon_ref == new_head.hash
                 assert self.is_descendant(self.blocks[sc.parent_hash].beacon_ref, new_head.hash)
                 self.broadcast(sc)
+                self.on_receive(sc)
             for c in self.shard_chains[s]:
                 assert self.blocks[c].shard_id == s and self.blocks[c].beacon_ref in self.beacon_chain
 
@@ -194,12 +209,13 @@ class Node():
         # Check consistency of cross-link reference
         assert self.is_descendant(self.blocks[block.parent_hash].main_chain_ref, block.main_chain_ref)
         # Add the block
-        self.log("Processing beacon block %s" % to_hex(block.hash[:4]))
+        self.log("Processing beacon block %s" % to_hex(block.hash[:4]), lvl=1)
         self.blocks[block.hash] = block
         # Am I a notary, and is the block building on the head? Then broadcast a signature.
         if block.parent_hash == self.beacon_chain[-1] or self.careless:
             if self.id in block.notaries:
                 self.broadcast(Sig(self.id, block))
+                self.on_receive(Sig(self.id, block))
         # Check for sigs, add to head?, make a block?
         if len(self.sigs.get(block.hash, [])) >= block.notary_req:
             if block.number > self.blocks[self.beacon_chain[-1]].number and block.main_chain_ref in self.main_chain:
@@ -212,7 +228,7 @@ class Node():
         self.add_to_multiset(self.children, block.parent_hash, block.hash)
         # Final steps
         self.process_children(block.hash)
-        self.network.broadcast(self, block)
+        self.broadcast(block)
 
     def on_receive_sig(self, sig):
         self.add_to_multiset(self.sigs, sig.target_hash, sig)
@@ -224,10 +240,10 @@ class Node():
             if self.id in block.child_proposers:
                 my_index = block.child_proposers.index(self.id)
                 target_ts = block.ts + self.base_ts_diff + my_index * self.skip_ts_diff
-                self.log("Making block request for %.1f" % target_ts)
+                self.log("Making block request for %.1f" % target_ts, lvl=1)
                 self.add_to_timequeue(BlockMakingRequest(block.hash, target_ts))
         # Rebroadcast
-        self.network.broadcast(self, sig)
+        self.broadcast(sig)
 
     def on_receive_shard_collation(self, block):
         # Parent not yet received
@@ -240,7 +256,7 @@ class Node():
             return None
         # Check consistency of cross-link reference
         assert self.is_descendant(self.blocks[block.parent_hash].beacon_ref, block.beacon_ref)
-        self.log("Processing shard collation %s" % to_hex(block.hash[:4]))
+        self.log("Processing shard collation %s" % to_hex(block.hash[:4]), lvl=1)
         self.blocks[block.hash] = block
         # Set head if needed
         if block.number > self.blocks[self.shard_chains[block.shard_id][-1]].number and block.beacon_ref in self.beacon_chain:
@@ -249,14 +265,22 @@ class Node():
         self.add_to_multiset(self.children, block.parent_hash, block.hash)
         # Final steps
         self.process_children(block.hash)
-        self.network.broadcast(self, block)
+        self.broadcast(block)
 
     def tick(self):
+        if self.id == 0:
+            if self.network.time in self.network.objqueue:
+                for recipient, obj in self.network.objqueue[self.network.time]:
+                    recipient.on_receive(obj)
+                del self.network.objqueue[self.network.time]
+            self.network.time += 1
         if self.ts == 0:
             if self.id in self.blocks[self.beacon_chain[0]].notaries:
                 self.broadcast(Sig(self.id, self.blocks[self.beacon_chain[0]]))
+                self.on_receive(Sig(self.id, self.blocks[self.beacon_chain[0]]))
         self.ts += 0.1
-        self.log("Tick: %.1f" % self.ts, lvl=1)
+        if self.ts % 10 == 0:
+            self.log("Tick: %.1f" % self.ts, lvl=3)
         # Process time queue
         while len(self.timequeue) and self.timequeue[0].ts <= self.ts:
             self.on_receive(self.timequeue.pop(0))
@@ -265,3 +289,4 @@ class Node():
         mchead = self.blocks[self.main_chain[-1]]
         if checkpow(mchead.pownonce, pownonce, self.powdiff):
             self.broadcast(MainChainBlock(mchead, pownonce, self.ts, self.powdiff))
+            self.on_receive(MainChainBlock(mchead, pownonce, self.ts, self.powdiff))

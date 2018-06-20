@@ -1,6 +1,7 @@
 from network import NetworkSimulator
 from node import Node, BeaconBlock, MainChainBlock, ShardCollation
-from plot import plotChain
+from plot import plotChain, plotNetwork
+import time
 
 
 ##  This method runs the whole simulation.
@@ -33,11 +34,12 @@ def run():
                  shard_geneses,
                  sleepy=i % 5 == 9) for i in range(nb_notaries)]
 
-    """Add notaries to the network"""
+    # Add notaries to the network
     net.agents = notaries
 
     # Generate peers
     net.generate_peers()
+    plotNetwork(net, "results/")
 
     # Run network for nb_ticks
     for i in range(nb_ticks):
@@ -47,14 +49,14 @@ def run():
     for n in notaries:
         print("Beacon head: %d" % n.blocks[n.beacon_chain[-1]].number)
         print("Main chain head: %d" % n.blocks[n.main_chain[-1]].number)
-        print("Shard heads: %r" % [n.blocks[x[-1]].number for x in n.shard_chains])
+        #print("Shard heads: %r" % [n.blocks[x[-1]].number for x in n.shard_chains])
         print("Total beacon blocks received: %d" % (len([b for b in n.blocks.values() if isinstance(b, BeaconBlock)]) - 1))
         print("Total beacon blocks received and signed: %d" % (len([b for b in n.blocks.keys() if b in n.sigs and len(n.sigs[b]) >= n.blocks[b].notary_req]) - 1))
         print("Total main chain blocks received: %d" % (len([b for b in n.blocks.values() if isinstance(b, MainChainBlock)]) - 1))
-        print("Total shard blocks received: %r" % [len([b for b in n.blocks.values() if isinstance(b, ShardCollation) and b.shard_id == i]) - 1 for i in range(nb_shards)])
+        #print("Total shard blocks received: %r" % [len([b for b in n.blocks.values() if isinstance(b, ShardCollation) and b.shard_id == i]) - 1 for i in range(nb_shards)])
 
-    # Plot chain
-    plotChain(n)
+    # Plot chain from one of the notaries (the last one)
+    plotChain(n, "results/")
 
 
 run()

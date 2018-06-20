@@ -23,6 +23,14 @@ class MainChainBlock():
         self.pownonce = pownonce
         self.number = 0 if parent is None else parent.number + 1
 
+    ##  This method return a printable string of this block
+    #   @param self     Pointer to this block in the main chain.
+    def __str__(self):
+        sti = " < Number : " + str(self.number)
+        sti += ", parent : " + str(self.parent_hash)
+        sti += ", pownonce : " + str(self.pownonce) + "> "
+        return sti
+
 
 ##  This class represents a block in the beacon chain
 #   Not a full RANDAO; stub for now
@@ -77,6 +85,14 @@ class BeaconBlock():
         for i in range(nb_shards):
             self.shard_proposers.append(v % nb_notaries)
             v //= nb_notaries
+
+    ##  This method return a printable string of this block
+    #   @param self     Pointer to this block in the main chain.
+    def __str__(self):
+        sti = " < Number : " + str(self.number)
+        sti += ", parent : " + str(self.parent_hash) + "> "
+        return sti
+
 
 
 ## This class represents a shard collation.
