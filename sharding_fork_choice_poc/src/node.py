@@ -72,6 +72,12 @@ class Node():
         if (self.id == 0 or all) and lvl >= 2:
             print(self.id, words)
 
+
+    ##  This method is a hub that calls the right receive function depending on
+    #   which type of block is received
+    #   @param self         Pointer to this node
+    #   @param obj          The object that is being received
+    #   @param reprocess    Set to True if the object has to be reprocessed
     def on_receive(self, obj, reprocess=False):
         if obj.hash in self.processed and not reprocess:
             return
@@ -101,17 +107,32 @@ class Node():
                 self.broadcast(x)
                 self.on_receive(x)
 
+
+    ##  This method adds an object to the time queue for later processing
+    #   @param self     Pointer to this node
+    #   @param obj      The object to be added to the timequeue
     def add_to_timequeue(self, obj):
         i = 0
         while i < len(self.timequeue) and self.timequeue[i].ts < obj.ts:
             i += 1
         self.timequeue.insert(i, obj)
 
+
+    ##  This method adds an object into a set
+    #   @param self     Pointer to this node
+    #   @param set      The set in which the obejct has to be added
+    #   @param k        The key of the object to be stored
+    #   @param v        The value of the object to be stored
     def add_to_multiset(self, _set, k, v):
         if k not in _set:
             _set[k] = []
         _set[k].append(v)
 
+
+    ##  This method changes to a new head in a particular chain
+    #   @param  self        Pointer to this node
+    #   @param  chain       The chain that has to change head
+    #   @param  new_head    The new head of the chain
     def change_head(self, chain, new_head):
         chain.extend([None] * (new_head.number + 1 - len(chain)))
         i, c = new_head.number, new_head.hash
@@ -122,6 +143,11 @@ class Node():
         for i in range(len(chain)):
             assert self.blocks[chain[i]].number == i
 
+
+    ##  This method recalculates the head of the chain
+    #   @param  self        Pointer to this node
+    #   @param  chain       The chain in which the head has to be recalculated
+    #   @param  condition   The condition to recalculate the head
     def recalculate_head(self, chain, condition):
         while not condition(self.blocks[chain[-1]]):
             chain.pop()
@@ -139,12 +165,20 @@ class Node():
         for i in range(len(chain)):
             assert condition(self.blocks[chain[i]])
 
+
+    ##  This method process the children
+    #   @param  self    Pointer to this node
+    #   @param  h       The element to be processed
     def process_children(self, h):
         if h in self.parentqueue:
             for b in self.parentqueue[h]:
                 self.on_receive(b, reprocess=True)
             del self.parentqueue[h]
 
+
+    ##  This method process a main chain block
+    #   @param  self    Pointer to this node
+    #   @param  block   The main chain block to be processed
     def on_receive_main_block(self, block):
         # Parent not yet received
         if block.parent_hash not in self.blocks:
@@ -168,12 +202,21 @@ class Node():
         self.process_children(block.hash)
         self.broadcast(block)
 
+
+    ##  This method checks the relationship between two blocks
+    #   @param  self    Pointer to this node
+    #   @param  a       The block to be compared
+    #   @param  b       The block to be compared
     def is_descendant(self, a, b):
         a, b = self.blocks[a], self.blocks[b]
         while b.number > a.number:
             b = self.blocks[b.parent_hash]
         return a.hash == b.hash
 
+
+    ##  This method changes the head of the beacon chain
+    #   @param  self        Pointer to this node
+    #   @param  new_head    The new head to change to
     def change_beacon_head(self, new_head):
         self.log("Changed beacon head: %s" % new_head.number, lvl=1)
         reorging = (new_head.parent_hash != self.beacon_chain[-1])
@@ -193,6 +236,9 @@ class Node():
             for c in self.shard_chains[s]:
                 assert self.blocks[c].shard_id == s and self.blocks[c].beacon_ref in self.beacon_chain
 
+    ##  This method receives a beacon block
+    #   @param  self    Pointer to this node
+    #   @param  block   The beacon block to be processed
     def on_receive_beacon_block(self, block):
         # Parent not yet received
         if block.parent_hash not in self.blocks:
@@ -230,6 +276,10 @@ class Node():
         self.process_children(block.hash)
         self.broadcast(block)
 
+
+    ##  This method receives a signature
+    #   @param  self    Pointer to this node
+    #   @param  sig     The signature to be received
     def on_receive_sig(self, sig):
         self.add_to_multiset(self.sigs, sig.target_hash, sig)
         # Add to head? Make a block?
@@ -245,6 +295,10 @@ class Node():
         # Rebroadcast
         self.broadcast(sig)
 
+
+    ##  This method receives a shard collation
+    #   @param  self    Pointer to this node
+    #   @param  block   The shard collation to be received
     def on_receive_shard_collation(self, block):
         # Parent not yet received
         if block.parent_hash not in self.blocks:
@@ -267,6 +321,9 @@ class Node():
         self.process_children(block.hash)
         self.broadcast(block)
 
+
+    ##  This method ticks a unit of time
+    #   @param  self     Pointer to this node
     def tick(self):
         if self.id == 0:
             if self.network.time in self.network.objqueue:

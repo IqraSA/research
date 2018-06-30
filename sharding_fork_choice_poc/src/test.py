@@ -43,7 +43,8 @@ def run():
 
     # Run network for nb_ticks
     for i in range(nb_ticks):
-        net.tick()
+        for agent in net.agents:
+            agent.tick()
 
     # Print notaries information
     for n in notaries:
