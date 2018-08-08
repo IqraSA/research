@@ -45,15 +45,15 @@ def plotChain(n, dir):
 
 ##  This method plots the peer to peer network of the blockchain being
 #   simulated
-#   @param network  The peer to peer network to plot
+#   @param peers    The peer to peer network to plot
 #   @param dir      The directory where the figure should be saved
-def plotNetwork(network, dir):
+def plotNetwork(peers, dir):
     plt.clf()
     G=nx.Graph()
     fig = plt.figure(figsize=(18,9))
-    for peer in network.peers:
+    for peer in peers:
         G.add_node(str(peer))
-        for p in network.peers.get(peer):
+        for p in peers.get(peer):
             G.add_edge(str(peer), str(p.id))
     nx.draw(G, with_labels=True)
     plt.axis("off")

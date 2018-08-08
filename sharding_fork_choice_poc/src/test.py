@@ -1,7 +1,7 @@
-from network import NetworkSimulator
 from node import Node, BeaconBlock, MainChainBlock, ShardCollation
 from plot import plotChain, plotNetwork
 import time
+import random
 
 
 ##  This method runs the whole simulation.
@@ -14,36 +14,52 @@ def run():
     nb_notaries = 40
     nb_shards = 40
     nb_ticks = 2000
+    nb_peers = 5
 
     # Creat Genesis Blocks and Collations
     main_genesis = MainChainBlock(None, 59049, 0, nb_notaries*30)
     beacon_genesis = BeaconBlock(None, 1, 0, [], main_genesis, nb_notaries, nb_shards)
     shard_geneses = [ShardCollation(i, None, 0, beacon_genesis, 0) for i in range(nb_shards)]
 
-    # Create network simulator
-    net = NetworkSimulator(latency=19)
-
     # Create list of notaries
+    objqueue = {}
+    globalTime = [0]
     notaries = [Node(i,
-                 net,
-                 nb_shards,
-                 nb_notaries,
-                 nb_notaries*30,
-                 main_genesis,
-                 beacon_genesis,
-                 shard_geneses,
-                 sleepy=i % 5 == 9) for i in range(nb_notaries)]
-
-    # Add notaries to the network
-    net.agents = notaries
+                    objqueue,
+                    globalTime,
+                    nb_shards,
+                    nb_notaries,
+                    nb_notaries*30,
+                    main_genesis,
+                    beacon_genesis,
+                    shard_geneses,
+                    sleepy=i % 5 == 9) for i in range(nb_notaries)]
 
     # Generate peers
-    net.generate_peers()
-    plotNetwork(net, "results/")
+    peers = {}
+    for agent in notaries:
+        p = []
+        while len(p) <= nb_peers // 2:
+            peer = random.choice(notaries)
+            if (peer.id != agent.id) and (peer not in p):
+                p.append(peer)
+        peers[agent.id] = peers.get(agent.id, []) + p
+        for peer in p:
+            if agent not in peers.get(peer.id, []):
+                peers[peer.id] = peers.get(peer.id, []) + [agent]
 
-    # Run network for nb_ticks
+    for agent in notaries:
+        agent.add_peers(notaries, peers.get(agent.id, []))
+
+    # Run simulation for nb_ticks
     for i in range(nb_ticks):
-        for agent in net.agents:
+        if globalTime[0] in objqueue:
+            for recipient, obj in objqueue[globalTime[0]]:
+                recipient.on_receive(obj)
+            del objqueue[globalTime[0]]
+        globalTime[0] += 1
+
+        for agent in notaries:
             agent.tick()
 
     # Print notaries information
@@ -57,6 +73,7 @@ def run():
         #print("Total shard blocks received: %r" % [len([b for b in n.blocks.values() if isinstance(b, ShardCollation) and b.shard_id == i]) - 1 for i in range(nb_shards)])
 
     # Plot chain from one of the notaries (the last one)
+    plotNetwork(peers, "results/")
     plotChain(n, "results/")
 
 

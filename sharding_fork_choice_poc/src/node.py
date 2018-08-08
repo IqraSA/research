@@ -1,5 +1,5 @@
 from block import BeaconBlock, MainChainBlock, ShardCollation, BlockMakingRequest, Sig
-from tools import to_hex, checkpow
+from tools import transform, normal_distribution, to_hex, checkpow
 import random
 
 ##  This class represents a node in the network.
@@ -21,7 +21,7 @@ class Node():
     #   @param careless         Set to True if the node is careless.
     #   @param base_ts_diff     TBD.
     #   @param skip_ts_diff     TBD.
-    def __init__(self, _id, network, nb_shards, nb_notaries, powdiff, main_genesis, beacon_genesis, shard_geneses, sleepy=False, careless=False, base_ts_diff=1, skip_ts_diff=6):
+    def __init__(self, _id, objqueue, globalTime, nb_shards, nb_notaries, powdiff, main_genesis, beacon_genesis, shard_geneses, sleepy=False, careless=False, base_ts_diff=1, skip_ts_diff=6):
         self.blocks = {
             beacon_genesis.hash: beacon_genesis,
             main_genesis.hash: main_genesis
@@ -29,6 +29,7 @@ class Node():
         for s in shard_geneses:
             self.blocks[s.hash] = s
         self.sigs = {}
+        self.latency_dist = transform(normal_distribution(20, (20 * 2) // 5), lambda x: max(x, 0))
         self.beacon_chain = [beacon_genesis.hash]
         self.main_chain = [main_genesis.hash]
         self.shard_chains = [[g.hash] for g in shard_geneses]
@@ -37,7 +38,10 @@ class Node():
         self.children = {}
         self.ts = 0
         self.id = _id
-        self.network = network
+        self.agents = []
+        self.peers = []
+        self.objqueue = objqueue
+        self.globalTime = globalTime
         self.used_parents = {}
         self.processed = {}
         self.sleepy = sleepy
@@ -47,18 +51,29 @@ class Node():
         self.nb_notaries = nb_notaries
         self.base_ts_diff = base_ts_diff
         self.skip_ts_diff = skip_ts_diff
+        self.reliability = 0.9
 
-    ##  This method broadcast a message to all the nodes in the network.
+
+
+    ##  This method generates the list of peers for each peer.
+    #   The peer selection is done randomly.
+    #   @param self             Pointer to this node.
+    #   @param num_peers        Number of peers for each peer. Set to 5 by default.
+    def add_peers(self, agents, peers, num_peers=5):
+        self.agents = agents
+        self.peers = peers
+
+
+    ##  This method broadcast a message to all its peers.
     #   @param self Pointer to this node.
     #   @param obj  Message to be broadcasted
     def broadcast(self, obj):
-        self.log("Broadcasting %s %s" % ("block" if isinstance(obj, BeaconBlock) else "sig", to_hex(obj.hash[:4])), lvl=3)
-        #self.network.broadcast(self, x)
-        for p in self.network.peers[self.id]:
-            recv_time = self.network.time + self.network.latency_distribution_sample()
-            if recv_time not in self.network.objqueue:
-                self.network.objqueue[recv_time] = []
-            self.network.objqueue[recv_time].append((p, obj))
+        #self.log("Broadcasting %s %s" % ("block" if isinstance(obj, BeaconBlock) else "sig", to_hex(obj.hash[:4])), lvl=3)
+        for p in self.peers:
+            recv_time = self.globalTime[0] + self.latency_dist()
+            if recv_time not in self.objqueue:
+                self.objqueue[recv_time] = []
+            self.objqueue[recv_time].append((p, obj))
         #self.on_receive(obj)
 
 
@@ -81,7 +96,7 @@ class Node():
     def on_receive(self, obj, reprocess=False):
         if obj.hash in self.processed and not reprocess:
             return
-        if random.random() > self.network.reliability:
+        if random.random() > self.reliability:
             return
         self.processed[obj.hash] = True
         self.log("Processing %s %s" % ("block" if isinstance(obj, BeaconBlock) else "sig", to_hex(obj.hash[:4])), lvl=1)
@@ -325,12 +340,6 @@ class Node():
     ##  This method ticks a unit of time
     #   @param  self     Pointer to this node
     def tick(self):
-        if self.id == 0:
-            if self.network.time in self.network.objqueue:
-                for recipient, obj in self.network.objqueue[self.network.time]:
-                    recipient.on_receive(obj)
-                del self.network.objqueue[self.network.time]
-            self.network.time += 1
         if self.ts == 0:
             if self.id in self.blocks[self.beacon_chain[0]].notaries:
                 self.broadcast(Sig(self.id, self.blocks[self.beacon_chain[0]]))
@@ -347,3 +356,4 @@ class Node():
         if checkpow(mchead.pownonce, pownonce, self.powdiff):
             self.broadcast(MainChainBlock(mchead, pownonce, self.ts, self.powdiff))
             self.on_receive(MainChainBlock(mchead, pownonce, self.ts, self.powdiff))
+
