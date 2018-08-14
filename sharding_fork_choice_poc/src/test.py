@@ -22,11 +22,7 @@ def run():
     shard_geneses = [ShardCollation(i, None, 0, beacon_genesis, 0) for i in range(nb_shards)]
 
     # Create list of notaries
-    objqueue = {}
-    globalTime = [0]
     notaries = [Node(i,
-                    objqueue,
-                    globalTime,
                     nb_shards,
                     nb_notaries,
                     nb_notaries*30,
@@ -50,32 +46,18 @@ def run():
 
     for agent in notaries:
         agent.add_peers(notaries, peers.get(agent.id, []))
+    plotNetwork(peers, "results/")
+    del peers
 
     # Run simulation for nb_ticks
     for i in range(nb_ticks):
-        if globalTime[0] in objqueue:
-            for recipient, obj in objqueue[globalTime[0]]:
-                recipient.on_receive(obj)
-            del objqueue[globalTime[0]]
-        globalTime[0] += 1
-
-        for agent in notaries:
+        for agent in notaries:      ### <=== PARALLEL
             agent.tick()
 
     # Print notaries information
-    for n in notaries:
-        print("Beacon head: %d" % n.blocks[n.beacon_chain[-1]].number)
-        print("Main chain head: %d" % n.blocks[n.main_chain[-1]].number)
-        #print("Shard heads: %r" % [n.blocks[x[-1]].number for x in n.shard_chains])
-        print("Total beacon blocks received: %d" % (len([b for b in n.blocks.values() if isinstance(b, BeaconBlock)]) - 1))
-        print("Total beacon blocks received and signed: %d" % (len([b for b in n.blocks.keys() if b in n.sigs and len(n.sigs[b]) >= n.blocks[b].notary_req]) - 1))
-        print("Total main chain blocks received: %d" % (len([b for b in n.blocks.values() if isinstance(b, MainChainBlock)]) - 1))
-        #print("Total shard blocks received: %r" % [len([b for b in n.blocks.values() if isinstance(b, ShardCollation) and b.shard_id == i]) - 1 for i in range(nb_shards)])
-
-    # Plot chain from one of the notaries (the last one)
-    plotNetwork(peers, "results/")
-    plotChain(n, "results/")
-
+    for agent in notaries:              ### <=== PARALLEL
+        agent.logProgress()
+        plotChain(agent)
 
 run()
 

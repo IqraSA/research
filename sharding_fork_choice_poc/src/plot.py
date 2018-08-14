@@ -17,10 +17,9 @@ def mkoffset(b):
 
 ##  This method plots the blockchain as seen from one of the notaries
 #   @param n    The notarie to plot its view of the chain
-#   @param dir  The directory where the figure should be saved
-def plotChain(n, dir):
+def plotChain(n):
     G=nx.Graph()
-
+    fileName = "results/chain-" + str(n.id) + ".png"
     for b in n.blocks.values():
         if b.number > 0:
             if isinstance(b, BeaconBlock):
@@ -31,7 +30,6 @@ def plotChain(n, dir):
             elif isinstance(b, ShardCollation):
                 G.add_edge(b.hash, b.beacon_ref, color='r')
                 G.add_edge(b.hash, b.parent_hash, color='y')
-
     plt.clf()
     fig = plt.figure(figsize=(18,9))
     pos={b.hash: (b.ts + mkoffset(b), b.ts) for b in n.blocks.values()}
@@ -40,7 +38,8 @@ def plotChain(n, dir):
     nx.draw_networkx_nodes(G, pos, node_size=10, node_shape='o', node_color='0.75')
     nx.draw_networkx_edges(G, pos, width=2, edge_color=colors)
     plt.ylabel("Time (ticks)")
-    plt.savefig(dir+"/chain.png", bbox_inches="tight")
+    plt.savefig(fileName, bbox_inches="tight")
+    plt.close()
 
 
 ##  This method plots the peer to peer network of the blockchain being

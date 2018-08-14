@@ -21,7 +21,7 @@ class Node():
     #   @param careless         Set to True if the node is careless.
     #   @param base_ts_diff     TBD.
     #   @param skip_ts_diff     TBD.
-    def __init__(self, _id, objqueue, globalTime, nb_shards, nb_notaries, powdiff, main_genesis, beacon_genesis, shard_geneses, sleepy=False, careless=False, base_ts_diff=1, skip_ts_diff=6):
+    def __init__(self, _id, nb_shards, nb_notaries, powdiff, main_genesis, beacon_genesis, shard_geneses, sleepy=False, careless=False, base_ts_diff=1, skip_ts_diff=6):
         self.blocks = {
             beacon_genesis.hash: beacon_genesis,
             main_genesis.hash: main_genesis
@@ -40,8 +40,8 @@ class Node():
         self.id = _id
         self.agents = []
         self.peers = []
-        self.objqueue = objqueue
-        self.globalTime = globalTime
+        self.objqueue = {}
+        self.globalTime = 0
         self.used_parents = {}
         self.processed = {}
         self.sleepy = sleepy
@@ -70,10 +70,10 @@ class Node():
     def broadcast(self, obj):
         #self.log("Broadcasting %s %s" % ("block" if isinstance(obj, BeaconBlock) else "sig", to_hex(obj.hash[:4])), lvl=3)
         for p in self.peers:
-            recv_time = self.globalTime[0] + self.latency_dist()
-            if recv_time not in self.objqueue:
-                self.objqueue[recv_time] = []
-            self.objqueue[recv_time].append((p, obj))
+            recv_time = self.globalTime + self.latency_dist()
+            if recv_time not in p.objqueue:
+                p.objqueue[recv_time] = []
+            p.objqueue[recv_time].append((p, obj))
         #self.on_receive(obj)
 
 
@@ -340,6 +340,12 @@ class Node():
     ##  This method ticks a unit of time
     #   @param  self     Pointer to this node
     def tick(self):
+        if self.globalTime in self.objqueue:
+            for recipient, obj in self.objqueue[self.globalTime]:
+                if recipient.id == self.id:
+                    self.on_receive(obj)
+            del self.objqueue[self.globalTime]
+
         if self.ts == 0:
             if self.id in self.blocks[self.beacon_chain[0]].notaries:
                 self.broadcast(Sig(self.id, self.blocks[self.beacon_chain[0]]))
@@ -356,4 +362,19 @@ class Node():
         if checkpow(mchead.pownonce, pownonce, self.powdiff):
             self.broadcast(MainChainBlock(mchead, pownonce, self.ts, self.powdiff))
             self.on_receive(MainChainBlock(mchead, pownonce, self.ts, self.powdiff))
+        self.globalTime = self.globalTime + 1
+
+    ##  This method prints block progress information on a file
+    #   @param  self     Pointer to this node
+    def logProgress(self):
+        resFile = "results/" + str(self.id) + ".txt"
+        f = open(resFile, "w")
+        f.write("Main chain head: %d \n" % self.blocks[self.main_chain[-1]].number)
+        f.write("Total main chain blocks received: %d \n" % (len([b for b in self.blocks.values() if isinstance(b, MainChainBlock)]) - 1))
+        f.write("Beacon head: %d \n" % self.blocks[self.beacon_chain[-1]].number)
+        f.write("Total beacon blocks received: %d \n" % (len([b for b in self.blocks.values() if isinstance(b, BeaconBlock)]) - 1))
+        f.write("Total beacon blocks received and signed: %d \n" % (len([b for b in self.blocks.keys() if b in self.sigs and len(self.sigs[b]) >= self.blocks[b].notary_req]) - 1))
+        f.write("Shard heads: %r \n" % [self.blocks[x[-1]].number for x in self.shard_chains])
+        #f.write("Total shard blocks received: %r \n" % [len([b for b in self.blocks.values() if isinstance(b, ShardCollation) and b.shard_id == i]) - 1 for i in range(nb_shards)])
+        f.close()
 
