@@ -2,6 +2,8 @@ from block import BeaconBlock, MainChainBlock, ShardCollation, BlockMakingReques
 from tools import transform, normal_distribution, to_hex, checkpow
 import random
 
+commChannel = []
+
 ##  This class represents a node in the network.
 #   It will be refactored into a distributed version.
 class Node():
@@ -64,16 +66,24 @@ class Node():
         self.peers = peers
 
 
+    ##  This method sents a message to a target peer
+    #   @param self Pointer to this node.
+    #   @param p    Target process to receive the object.
+    #   @param obj  Object to be sent.
+    def send(self, p, obj):
+        global commChannel
+        msg = [self.id, p.id, obj]
+        commChannel.append(msg)
+        print "Object sent from %d to %d"  % (self.id, p.id)
+
+
     ##  This method broadcast a message to all its peers.
     #   @param self Pointer to this node.
     #   @param obj  Message to be broadcasted
     def broadcast(self, obj):
         #self.log("Broadcasting %s %s" % ("block" if isinstance(obj, BeaconBlock) else "sig", to_hex(obj.hash[:4])), lvl=3)
         for p in self.peers:
-            recv_time = self.globalTime + self.latency_dist()
-            if recv_time not in p.objqueue:
-                p.objqueue[recv_time] = []
-            p.objqueue[recv_time].append((p, obj))
+            self.send(p, obj)
         #self.on_receive(obj)
 
 
@@ -335,6 +345,21 @@ class Node():
         # Final steps
         self.process_children(block.hash)
         self.broadcast(block)
+
+
+    ##  This method ...
+    #   @param  self     Pointer to this node
+    def listen(self):
+        global commChannel
+        for msg in commChannel:
+            if msg[1] == self.id:
+                obj = msg[2]
+                recv_time = self.globalTime + self.latency_dist()
+                print "Object sent from %d at time %d to be RECEIVED by %d at time %d" % (msg[0], self.globalTime, msg[1], recv_time)
+                if recv_time not in self.objqueue:
+                    self.objqueue[recv_time] = []
+                self.objqueue[recv_time].append((self, obj))
+                commChannel.remove(msg)
 
 
     ##  This method ticks a unit of time

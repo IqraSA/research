@@ -11,9 +11,9 @@ import random
 #   generated.
 def run():
     # Define main variables
-    nb_notaries = 40
-    nb_shards = 40
-    nb_ticks = 2000
+    nb_notaries = 10
+    nb_shards = 10
+    nb_ticks = 1000
     nb_peers = 5
 
     # Creat Genesis Blocks and Collations
@@ -53,6 +53,7 @@ def run():
     for i in range(nb_ticks):
         for agent in notaries:      ### <=== PARALLEL
             agent.tick()
+            agent.listen()
 
     # Print notaries information
     for agent in notaries:              ### <=== PARALLEL
