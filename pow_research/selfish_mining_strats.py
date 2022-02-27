@@ -27,7 +27,7 @@ def test_strat(strat, hashpower, gamma, reward, fees, uncle_rewards=1, uncle_coe
     # Uncles included from others
     them_totuncles = 0
     # Simulate the system
-    for i in range(rounds):
+    for _ in range(rounds):
         # Attacker makes a block
         if random.random() < hashpower:
             me_blocks += 1
@@ -52,10 +52,9 @@ def test_strat(strat, hashpower, gamma, reward, fees, uncle_rewards=1, uncle_coe
                     r = min(them_blocks, max_uncles) * (0.875 - 0.125 * me_blocks) * uncle_rewards
                     them_totuncles += min(them_blocks, max_uncles)
                     divisor += min(them_blocks, max_uncles) * uncle_coeff
-                    them_reward = them_reward + r
+                    them_reward += r
                     them_blocks -= min(them_blocks, max_uncles)
                     me_blocks += 1
-            # Adopt
             else:
                 # them_reward += them_blocks * reward - (reward if me_blocks and them_blocks else 0)
                 them_reward += them_blocks * reward
@@ -68,13 +67,12 @@ def test_strat(strat, hashpower, gamma, reward, fees, uncle_rewards=1, uncle_coe
                     r = min(me_blocks, max_uncles) * (0.875 - 0.125 * them_blocks) * uncle_rewards
                     me_totuncles += min(me_blocks, max_uncles)
                     divisor += min(me_blocks, max_uncles) * uncle_coeff
-                    me_reward = me_reward + r
+                    me_reward += r
                     me_blocks -= min(me_blocks, max_uncles)
                     them_blocks += 1
             me_blocks = 0
             them_blocks = 0
             time_elapsed = 0
-        # Match
         elif strat[me_blocks][them_blocks] == 2 and not last_is_me:
             if random.random() < gamma:
                 # me_reward += me_blocks * reward + time_elapsed * fees - (reward if me_blocks and them_blocks else 0)
@@ -88,7 +86,7 @@ def test_strat(strat, hashpower, gamma, reward, fees, uncle_rewards=1, uncle_coe
                     r = min(them_blocks, max_uncles) * (0.875 - 0.125 * me_blocks) * uncle_rewards
                     them_totuncles += min(them_blocks, max_uncles)
                     divisor += min(them_blocks, max_uncles) * uncle_coeff
-                    them_reward = them_reward + r
+                    them_reward += r
                     them_blocks -= min(them_blocks, max_uncles)
                     me_blocks += 1
                 me_blocks = 0
@@ -99,7 +97,7 @@ def test_strat(strat, hashpower, gamma, reward, fees, uncle_rewards=1, uncle_coe
 # A 20x20 array meaning "what to do if I made i blocks and the network
 # made j blocks?". 1 = publish, 0 = do nothing.
 def gen_selfish_mining_strat():
-    o = [([0] * 20) for i in range(20)]
+    o = [[0] * 20 for _ in range(20)]
     for me in range(20):
         for them in range(20):
             # Adopt

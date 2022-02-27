@@ -44,10 +44,7 @@ def gen_inputs(seed,w):
     v = []
     h = 0
     for i in range(w):
-        if i % 1 == 0:
-            h = u.big_endian_to_int(u.sha3(seed+str(i)))
-        else:
-            h = lshift(h)
+        h = u.big_endian_to_int(u.sha3(seed+str(i))) if i % 1 == 0 else lshift(h)
         v.append(h)
     return v
 

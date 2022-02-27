@@ -90,10 +90,7 @@ def old_adjust(timestamps, diffs):
         return diffs[-1]
     delta = timestamps[-1] - timestamps[-2]
     expected = TARGET * 0.693
-    if delta > expected:
-        fac = 1 - NAIVE_ADJUST_FACTOR
-    else:
-        fac = 1 + NAIVE_ADJUST_FACTOR
+    fac = 1 - NAIVE_ADJUST_FACTOR if delta > expected else 1 + NAIVE_ADJUST_FACTOR
     return diffs[-1] * fac
 
 

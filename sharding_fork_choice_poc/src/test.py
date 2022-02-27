@@ -50,7 +50,7 @@ def run():
     del peers
 
     # Run simulation for nb_ticks
-    for i in range(nb_ticks):
+    for _ in range(nb_ticks):
         for agent in notaries:      ### <=== PARALLEL
             agent.tick()
             agent.listen()

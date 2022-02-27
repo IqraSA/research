@@ -7,8 +7,10 @@ except:
 # Makes a request to a given URL (first arg) and optional params (second arg)
 def make_request(*args):
     opener = build_opener()
-    opener.addheaders = [('User-agent',
-                          'Mozilla/5.0'+str(random.randrange(1000000)))]
+    opener.addheaders = [
+        ('User-agent', f'Mozilla/5.0{str(random.randrange(1000000))}')
+    ]
+
     try: 
         return opener.open(*args).read().strip()
     except Exception as e:

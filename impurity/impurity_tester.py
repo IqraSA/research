@@ -26,7 +26,7 @@ except:
     success = False
 assert not success
 
-failedtest_addr = "0x"+utils.encode_hex(test1.address)
+failedtest_addr = f"0x{utils.encode_hex(test1.address)}"
 
 test2 = s.abi_contract("""
 
@@ -67,7 +67,7 @@ def modexp(b: uint256, e: uint256, m: uint256):
 """)
 
 c.submit(test4.address)
-modexp_addr = "0x"+utils.encode_hex(test4.address)
+modexp_addr = f"0x{utils.encode_hex(test4.address)}"
 
 test5 = s.abi_contract("""
 
@@ -115,9 +115,14 @@ t.startgas = t.intrinsic_gas_used + 50000 + 200 * len(kode)
 t.v = 27
 t.r = 45
 t.s = 79
-print('Send %d wei to %s' % (t.startgas * t.gasprice,
-                             '0x'+utils.encode_hex(t.sender)))
+print(
+    (
+        'Send %d wei to %s'
+        % (t.startgas * t.gasprice, f'0x{utils.encode_hex(t.sender)}')
+    )
+)
+
 
 print('Contract address: 0x'+utils.encode_hex(utils.mk_contract_address(t.sender, 0)))
-print('Code: 0x'+utils.encode_hex(rlp.encode(t)))
+print(f'Code: 0x{utils.encode_hex(rlp.encode(t))}')
 print('ABI declaration: '+repr(serpent.mk_full_signature('check_for_impurity.se')))

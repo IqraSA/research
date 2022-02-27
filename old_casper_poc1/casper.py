@@ -179,18 +179,18 @@ class Validator():
             self.network.broadcast(self, s)
             self.on_receive(s)
             self.network.broadcast(self, obj)
-        # When receiving a signature
         elif isinstance(obj, Signature):
             while len(self.received_signatures) <= len(obj.probs) + obj.sign_from:
                 self.received_signatures.append({})
             for i, p in enumerate(obj.probs):
                 self.received_signatures[i + obj.sign_from][obj.signer] = p
             self.network.broadcast(self, obj)
-        # Received a block request, respond if we have it
         elif isinstance(obj, BlockRequest):
-            if obj.ask_height < len(self.received_blocks):
-                if self.received_blocks[obj.ask_height] is not None:
-                    self.network.direct_send(obj.sender, self.received_blocks[obj.ask_height])
+            if (
+                obj.ask_height < len(self.received_blocks)
+                and self.received_blocks[obj.ask_height] is not None
+            ):
+                self.network.direct_send(obj.sender, self.received_blocks[obj.ask_height])
         self.received_objects[obj.hash] = obj
         self.time_received[obj.hash] = self.get_time()
 
@@ -220,10 +220,7 @@ now = [0]
 
 
 def who_heard_of(h, n):
-    o = ''
-    for x in n.agents:
-        o += '1' if h in x.received_objects else '0'
-    return o
+    return ''.join('1' if h in x.received_objects else '0' for x in n.agents)
 
 
 def get_opinions(n):
@@ -242,17 +239,14 @@ def get_opinions(n):
             elif x.probs[h] >= 10:
                 p += '+'
             else:
-                p += str(x.probs[h])+','
+                p += f'{str(x.probs[h])},'
             q += 'n' if len(x.received_blocks) <= h or x.received_blocks[h] is None else 'y'
         o.append((h, p, q))
     return o
 
 
 def get_finalization_heights(n):
-    o = []
-    for x in n.agents:
-        o.append(x.max_finalized_height)
-    return o
+    return [x.max_finalized_height for x in n.agents]
 
 
 # Check how often blocks that are assigned particular probabilities of

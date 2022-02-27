@@ -44,7 +44,7 @@ def decode_bin_path(p):
     p = encode_bin(p)
     if p[0] == 1:
         p = p[4:]
-    assert p[0:2] == prefix00
+    assert p[:2] == prefix00
     L = two_bits.index(p[2:4])
     return p[4+((4 - L) % 4):]
 

@@ -24,9 +24,9 @@ def sim_offline(p):
         if i % 100 == 0 or online >= 2 * offline:
             print("%d epochs (%.2f days): online %.4f offline %.4f" %
                   (i, epoch_len * i / 86400, online, offline))
-            # If the remaining validators can commit, break
-            if online >= 2 * offline:
-                return (1-p, online, epoch_len * i / 86400)
+        # If the remaining validators can commit, break
+        if online >= 2 * offline:
+            return (1-p, online, epoch_len * i / 86400)
 
 sim_offline(0.4)
 

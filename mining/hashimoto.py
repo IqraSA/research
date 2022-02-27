@@ -110,12 +110,12 @@ def quick_calc(params, seed, pos, known=None):
             curpicker = pow(init, i, p)
             x = 0
             if i < t:
-                for j in range(k):
+                for _ in range(k):
                     x ^= calc(curpicker % i)
                     curpicker >>= 10
                 known[i] = pow(x, w, p)
             else:
-                for j in range(hk):
+                for _ in range(hk):
                     x ^= calc(curpicker % t)
                     curpicker >>= 10
                 known[i] = pow(x, hw, p)

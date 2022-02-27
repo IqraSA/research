@@ -5,8 +5,8 @@
 import random
 
 POOL_SIZE = 10
-VALIDATOR_IDS = range(0, POOL_SIZE*2)
-INITIAL_VALIDATORS = range(0, POOL_SIZE)
+VALIDATOR_IDS = range(POOL_SIZE*2)
+INITIAL_VALIDATORS = range(POOL_SIZE)
 BLOCK_TIME = 100
 EPOCH_LENGTH = 5
 AVG_LATENCY = 255
@@ -141,8 +141,7 @@ class Node():
     @property
     def head(self):
         latest_checkpoint = self.checkpoints[-1]
-        latest_block = self.tails[latest_checkpoint]
-        return latest_block
+        return self.tails[latest_checkpoint]
 
     # Get the checkpoint immediately before a given checkpoint
     def get_checkpoint_parent(self, block):
@@ -257,16 +256,12 @@ class Node():
                     if new_score > max_score:
                         max_score = new_score
                         max_descendant = _hash
-            # Append to the chain that checkpoint, and all checkpoints between the
-            # last checkpoint and the new one
-            if max_descendant:
-                new_chain = [max_descendant]
-                while new_chain[0] != self.checkpoints[-1]:
-                    new_chain.insert(0, self.get_checkpoint_parent(self.received[new_chain[0]]).hash)
-                self.checkpoints.extend(new_chain[1:])
-            # If there were no suitable descendants found, break
-            else:
+            if not max_descendant:
                 break
+            new_chain = [max_descendant]
+            while new_chain[0] != self.checkpoints[-1]:
+                new_chain.insert(0, self.get_checkpoint_parent(self.received[new_chain[0]]).hash)
+            self.checkpoints.extend(new_chain[1:])
         print('New checkpoints: %r' % [self.received[b].epoch for b in self.checkpoints])
 
     # Called on receiving a prepare message
@@ -296,10 +291,10 @@ class Node():
             # If there are dependencies (ie. commits that arrived before there
             # were enough prepares), since there are now enough prepares we
             # can process them
-            if "commit:"+str(prepare.blockhash) in self.dependencies:
-                for c in self.dependencies["commit:"+str(prepare.blockhash)]:
+            if f"commit:{str(prepare.blockhash)}" in self.dependencies:
+                for c in self.dependencies[f"commit:{str(prepare.blockhash)}"]:
                     self.accept_commit(c)
-                del self.dependencies["commit:"+str(prepare.blockhash)]
+                del self.dependencies[f"commit:{str(prepare.blockhash)}"]
             # Broadcast a commit
             if self.current_epoch == prepare.view:
                 self.network.broadcast(Commit(prepare.view, prepare.blockhash, self.id))
@@ -323,7 +318,7 @@ class Node():
             return False
         # If there have not yet been enough prepares, wait
         if commit.blockhash not in self.committable:
-            self.add_dependency("commit:"+str(commit.blockhash), commit)
+            self.add_dependency(f"commit:{str(commit.blockhash)}", commit)
             return False
         # Add the commit by recording the sender
         self.commits[commit.blockhash].append(commit.sender)

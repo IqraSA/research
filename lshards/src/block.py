@@ -27,9 +27,9 @@ class MainChainBlock():
     ##  This method return a printable string of this block
     #   @param self     Pointer to this block in the main chain.
     def __str__(self):
-        sti = " <MB Number : " + str(self.number)
-        sti += ", hash : " + to_hex(self.hash[:4])
-        sti += ", parent : " + to_hex(self.parent_hash[:4]) + "> "
+        sti = f" <MB Number : {str(self.number)}"
+        sti += f", hash : {to_hex(self.hash[:4])}"
+        sti += f", parent : {to_hex(self.parent_hash[:4])}> "
         return sti
 
 
@@ -77,23 +77,23 @@ class BeaconBlock():
         self.notary_req = 0 if first else min_sample
         v = hash_to_int(sha3(self.contents + b':n'))
         self.notaries = []
-        for i in range(sample if first else sample):
+        for _ in range(sample if first else sample):
             self.notaries.append(v % nb_notaries)
             v //= nb_notaries
 
         # Calculate shard proposers
         v = hash_to_int(sha3(self.contents + b':s'))
         self.shard_proposers = []
-        for i in range(nb_shards):
+        for _ in range(nb_shards):
             self.shard_proposers.append(v % nb_notaries)
             v //= nb_notaries
 
     ##  This method return a printable string of this block
     #   @param self     Pointer to this block in the main chain.
     def __str__(self):
-        sti = " <BB Number : " + str(self.number)
-        sti += ", hash : " + to_hex(self.hash[:4])
-        sti += ", parent : " + to_hex(self.parent_hash[:4]) + "> "
+        sti = f" <BB Number : {str(self.number)}"
+        sti += f", hash : {to_hex(self.hash[:4])}"
+        sti += f", parent : {to_hex(self.parent_hash[:4])}> "
         return sti
 
 
@@ -128,9 +128,9 @@ class ShardCollation():
     ##  This method return a printable string of this block
     #   @param self     Pointer to this block in the main chain.
     def __str__(self):
-        sti = " <SC Number : " + str(self.number)
-        sti += ", hash : " + to_hex(self.hash[:4])
-        sti += ", parent : " + to_hex(self.parent_hash[:4]) + "> "
+        sti = f" <SC Number : {str(self.number)}"
+        sti += f", hash : {to_hex(self.hash[:4])}"
+        sti += f", parent : {to_hex(self.parent_hash[:4])}> "
         return sti
 
 

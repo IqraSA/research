@@ -53,7 +53,7 @@ def flatten_body(body):
 next_symbol = [0]
 def mksymbol():
     next_symbol[0] += 1
-    return 'sym_'+str(next_symbol[0])
+    return f'sym_{str(next_symbol[0])}'
 
 # "Flatten" a single statement into a list of simple statements.
 # First extract the target variable, then flatten the expression
@@ -143,7 +143,12 @@ def insert_var(arr, varz, var, used, reverse=False):
 
 # Maps input, output and intermediate variables to indices
 def get_var_placement(inputs, flatcode):
-    return ['~one'] + [x for x in inputs] + ['~out'] + [c[1] for c in flatcode if c[1] not in inputs and c[1] != '~out']
+    return (
+        ['~one']
+        + list(inputs)
+        + ['~out']
+        + [c[1] for c in flatcode if c[1] not in inputs and c[1] != '~out']
+    )
     
 
 # Convert the flattened code generated above into a rank-1 constraint system
@@ -160,7 +165,7 @@ def flatcode_to_r1cs(inputs, flatcode):
             a[varz.index(x[1])] += 1
             insert_var(a, varz, x[2], used, reverse=True)
             b[0] = 1
-        elif x[0] == '+' or x[0] == '-':
+        elif x[0] in ['+', '-']:
             c[varz.index(x[1])] = 1
             insert_var(a, varz, x[2], used)
             insert_var(a, varz, x[3], used, reverse=(x[0] == '-'))

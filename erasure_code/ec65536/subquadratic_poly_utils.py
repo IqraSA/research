@@ -1,7 +1,7 @@
 modulus_poly = [1, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 1, 0, 1, 0, 0, 1,
                 1]
-modulus_poly_as_int = sum([(v << i) for i, v in enumerate(modulus_poly)])
+modulus_poly_as_int = sum(v << i for i, v in enumerate(modulus_poly))
 degree = len(modulus_poly) - 1
 
 two_to_the_degree = 2**degree
@@ -76,9 +76,8 @@ def lagrange_interp(pieces, xs):
     # Generate output polynomial, which is the sum of the per-value numerator
     # polynomials rescaled to have the right y values
     factors = [galois_div(p, d) for p, d in zip(pieces, denoms)]
-    o = multi_root_derive(xs, factors)
     # print(o)
-    return o
+    return multi_root_derive(xs, factors)
 
 def multi_root_derive(xs, muls):
     if len(xs) == 1:
@@ -87,9 +86,8 @@ def multi_root_derive(xs, muls):
     R2 = mk_root_2(xs[len(xs) // 2:])
     x1 = karatsuba_mul(R1, multi_root_derive(xs[len(xs) // 2:], muls[len(muls) // 2:]) + [0])
     x2 = karatsuba_mul(R2, multi_root_derive(xs[:len(xs) // 2], muls[:len(muls) // 2]) + [0])
-    o = [v1 ^ v2 for v1, v2 in zip(x1, x2)][:len(xs)]
     # print(len(R1), len(x1), len(xs), len(o))
-    return o
+    return [v1 ^ v2 for v1, v2 in zip(x1, x2)][:len(xs)]
 
 def multi_root_derive_1(xs, muls):
     o = [0] * len(xs)
@@ -182,9 +180,8 @@ def mod(a, b):
     inv_rev_b = xn_mod_poly(b[::-1] + [0] * (len(a) - L))[:L]
     quot = karatsuba_mul(inv_rev_b, a[::-1][:L])[:L-1][::-1]
     subt = karatsuba_mul(b, quot + [0])[:-1]
-    o = [x ^ y for x, y in zip(a[:L-1], subt[:L-1])]
     # assert [x^y for x, y in zip(karatsuba_mul(quot + [0], b), o)] == a
-    return o
+    return [x ^ y for x, y in zip(a[:L-1], subt[:L-1])]
 
 def multi_eval_1(poly, xs):
     return [eval_poly_at(poly, x) for x in xs]

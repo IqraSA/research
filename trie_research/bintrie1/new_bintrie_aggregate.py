@@ -61,22 +61,19 @@ class WrapperDB():
     # Given a key, returns a collection of candidate nodes to form
     # a substore, as well as the children of that substore
     def get_substore_candidate_and_children(self, key, depth=5):
-        if depth == 0:
+        if depth == 0 or depth != 0 and self.parent_db.get(key) is not None:
             return [], [key]
-        elif self.parent_db.get(key) is not None:
-            return [], [key]
-        else:
-            node = self.get(key)
-            L, R, nodetype = parse_node(node)
-            if nodetype == BRANCH_TYPE:
-                Ln, Lc = self.get_substore_candidate_and_children(L, depth-1)
-                Rn, Rc = self.get_substore_candidate_and_children(R, depth-1)
-                return [node] + Ln + Rn, Lc + Rc
-            elif nodetype == KV_TYPE:
-                Rn, Rc = self.get_substore_candidate_and_children(R, depth-1)
-                return [node] + Rn, Rc
-            elif nodetype == LEAF_TYPE:
-                return [node], []
+        node = self.get(key)
+        L, R, nodetype = parse_node(node)
+        if nodetype == BRANCH_TYPE:
+            Ln, Lc = self.get_substore_candidate_and_children(L, depth-1)
+            Rn, Rc = self.get_substore_candidate_and_children(R, depth-1)
+            return [node] + Ln + Rn, Lc + Rc
+        elif nodetype == KV_TYPE:
+            Rn, Rc = self.get_substore_candidate_and_children(R, depth-1)
+            return [node] + Rn, Rc
+        elif nodetype == LEAF_TYPE:
+            return [node], []
 
     # Commits to the parent DB
     def commit(self):

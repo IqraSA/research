@@ -28,8 +28,9 @@ def scanline(ln,sp=','):
 def load(f,sp=','):
   array = [scanline(x,sp) for x in open(f,'r').readlines()]
   maxlen = 0
-  for i in range(len(array)):
-    if len(array[i]) > maxlen: maxlen = len(array[i])
+  for item in array:
+    if len(item) > maxlen:
+      maxlen = len(item)
   for i in range(len(array)):
     if len(array[i]) < maxlen: array[i] += [''] * (maxlen - len(array[i]))
   return array
@@ -141,9 +142,7 @@ def compose(arg):
 # wlist allows you to restrict the table to a given wordlist
 def pivot(li, wcol, addcols,wlist=0,sortkey=lambda x:1):
   if wlist == 0: wlist = phraselist(li,wcol)
-  result = {}
-  for i in range(len(wlist)):
-    result[wlist[i]] = [0] * len(addcols)
+  result = {wlist[i]: [0] * len(addcols) for i in range(len(wlist))}
   for i in range(len(li)):
     nums = []
     for ac in addcols:
@@ -155,19 +154,15 @@ def pivot(li, wcol, addcols,wlist=0,sortkey=lambda x:1):
       else: num = 1
       nums.append(num)
     if li[i][wcol] in result: result[li[i][wcol]] = [pair[0] + pair[1] for pair in zip(result[li[i][wcol]],nums)]
-  array = []
-  for word in result.keys():
-    array.append([word] + result[word])
+  array = [[word] + value for word, value in result.items()]
   return sorted(array,key=sortkey,reverse=True)
 # Similar to a pivot table but looks at individual keywords. The example list above will return with onegrams(li,0,[1,2]):
 # dog        75   3
 # cat        35   2
 # house      25   2
 def onegrams(li, wcol, addcols,wlist=0,sortkey=lambda x: 1):
-  if wlist == 0: wlist = wordlist(li,wcol) 
-  result = {}
-  for i in range(len(wlist)):
-    result[wlist[i]] = [0] * len(addcols)
+  if wlist == 0: wlist = wordlist(li,wcol)
+  result = {wlist[i]: [0] * len(addcols) for i in range(len(wlist))}
   for i in range(len(li)):
     words = [x.strip() for x in li[i][wcol].split(' ')]
     nums = []
@@ -179,11 +174,10 @@ def onegrams(li, wcol, addcols,wlist=0,sortkey=lambda x: 1):
         else: num = float(num)
       else: num = 1
       nums.append(num)
-    for i in range(len(words)):
-      if words[i] in result: result[words[i]] = [pair[0] + pair[1] for pair in zip(result[words[i]],nums)]
-  array = []
-  for word in result.keys():
-    array.append([word] + result[word])
+    for word_ in words:
+      if word_ in result:
+        result[word_] = [pair[0] + pair[1] for pair in zip(result[word_], nums)]
+  array = [[word] + value for word, value in result.items()]
   return sorted(array,key=sortkey,reverse=True)
 # Calculate a total sum for every column in addcols and for every word pair in wcol
 # words do not need to be beside each other or in any particular order, so "buy a dog house", "good house for dog owners", "dog in my house" all go under "dog house"
@@ -300,26 +294,18 @@ def filter(li,wcol,query):
   result = []
   for i in range(len(li)):
     words = [x.strip() for x in li[i][wcol].split(' ')]
-    inlist = True
     queryarray = query.split(' ')
     if queryarray == ['']: queryarray = []
-    for w in queryarray:
-      if w not in words: inlist = False
+    inlist = all(w in words for w in queryarray)
     if queryarray == ['*']: inlist = len(li[i][wcol]) > 0
     if inlist: result.append(li[i])
   return result
 # Filters array, requiring column wcol to exactly match query
 def phrasefilter(li,wcol,query):
-  result = []
-  for i in range(len(li)):
-    if li[i][wcol] == query: result.append(li[i])
-  return result
+  return [li[i] for i in range(len(li)) if li[i][wcol] == query]
 # Filters array, requiring function func taken of the row to return True (or 1)
 def funcfilter(li,func):
-  result = []
-  for i in range(len(li)):
-    if func(li[i]): result.append(li[i])
-  return result
+  return [li[i] for i in range(len(li)) if func(li[i])]
 # Adds up columns in addcols for a query matching keyfilter(li,wcol,query); can also be thought of as doing a single n-keyword match
 # eg:
 # dog, 25
@@ -342,25 +328,21 @@ def search(li,wcol,addcols,query):
         else: num = float(num)
       else: num = 1
       nums.append(num)
-    inlist = True
     queryarray = query.split(' ')
     if queryarray == ['']: queryarray = []
-    for w in queryarray:
-      if w not in words: inlist = False
+    inlist = all(w in words for w in queryarray)
     if queryarray == ['*']: inlist = len(li[i][wcol]) > 0
     if inlist:
       result = [pair[0] + pair[1] for pair in zip(result,nums)]
   return [query] + result
 # Print a CSV from an array to stdout
 def tochars(array,sp=','):
-  string = ""
-  for line in array: string += sp.join([str(x) for x in line]) + '\n'
+  string = "".join(sp.join([str(x) for x in line]) + '\n' for line in array)
   return string[:-1]
 # Save an array to CSV
 def save(f,array,sp=','):
-  writeto = open(f,'w')
-  writeto.write(tochars(array,sp))
-  writeto.close()
+  with open(f,'w') as writeto:
+    writeto.write(tochars(array,sp))
 # Compares keywords by two different parameters from two different lists. For example, li1 can be a list of how much money is spent (on addcol1) on a particular combination of keywords (on keycol1) and li2 can be a list of upgraded accounts with the search query they came from on keycol2, and addcol 2 can be left blank to default to -1 (each row is worth one point). Fourth column is statistical significance.
 # Remember that you may have to filter the list yourself first
 # Arguments:

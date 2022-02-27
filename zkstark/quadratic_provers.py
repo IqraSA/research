@@ -2,9 +2,7 @@
 # ith degree term, at coordinate x, in the prime field with the given
 # modulus
 def eval_poly_at(poly, x, modulus):
-    o = 0
-    for p, v in enumerate(poly):
-        o += v * pow(x, p, modulus) 
+    o = sum(v * pow(x, p, modulus) for p, v in enumerate(poly))
     return o % modulus
 
 # Evaluates a polynomial for every coordinate in the given prime field
@@ -16,9 +14,11 @@ def eval_across_field(poly, modulus):
 # eg. poly = [1, 2, 3, 4], subdeg = 2, the 2D polynomial becomes
 # 4xy + 3y + 2x + 1
 def eval_2d_poly_at(poly, x, y, subdeg, modulus):
-    o = 0
-    for p, v in enumerate(poly):
-        o += v * pow(x, p % subdeg, modulus) * pow(y, p // subdeg, modulus)
+    o = sum(
+        v * pow(x, p % subdeg, modulus) * pow(y, p // subdeg, modulus)
+        for p, v in enumerate(poly)
+    )
+
     return o % modulus
 
 # Interprets the given polynomial as a 2D polynomial, and evaluates it
@@ -26,9 +26,7 @@ def eval_2d_poly_at(poly, x, y, subdeg, modulus):
 def eval_across_square(poly, max_x, max_y, subdeg, modulus):
     o = []
     for y in range(max_y):
-        p = []
-        for x in range(max_x):
-            p.append(eval_2d_poly_at(poly, x, y, subdeg, modulus))
+        p = [eval_2d_poly_at(poly, x, y, subdeg, modulus) for x in range(max_x)]
         o.append(p)
     return o
 
@@ -51,7 +49,7 @@ def lagrange_interp(xs, ys, modulus):
             output.insert(0, last)
             if j != len(root):
                 last = root[-j] + last * xs[i]
-            last = last % modulus
+            last %= modulus
         nums.append(output)
     # Generate denominators by evaluating numerator polys at their x
     denoms = []
@@ -87,9 +85,7 @@ def mk_quadratic_proof(data, deg_lt, modulus):
         assert poly[i] == 0
     # Max degree must be a perfect square
     assert is_perf_square(deg_lt)
-    # Evaluate it across the entire square
-    sq = eval_across_square(poly, modulus, modulus, int(deg_lt ** 0.5), modulus)
-    return sq
+    return eval_across_square(poly, modulus, modulus, int(deg_lt ** 0.5), modulus)
 
 # Checks the correctness of the above proof
 def check_quadratic_proof(data, sq, deg_lt, checks, modulus):
@@ -148,7 +144,7 @@ def check_column_proof(data, proof, deg_lt, checks, modulus):
     check_col, column = proof
     # All possible values of x ** subdeg
     admissible_rows = [x for x in range(modulus) if pow(x, (modulus - 1) // subdeg, modulus) == 1]
-    for i in range(checks):
+    for _ in range(checks):
         # Choose a random row to check
         check_row = random.choice(admissible_rows)
         print('Checking row %d' % check_row)
