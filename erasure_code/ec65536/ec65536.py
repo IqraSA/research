@@ -24,7 +24,7 @@ def bytes_to_num(bytez):
 
 def num_to_bytes(inp, n):
     o = b''
-    for i in range(n):
+    for _ in range(n):
         o = bytes([inp % 256]) + o
         inp //= 256
     return o
@@ -83,15 +83,15 @@ class Prover():
         pdata = pad(data)
         byte_chunks = [pdata[i: i + CHUNK_SIZE] for i in range(0, len(pdata), CHUNK_SIZE)]
         # Decompose it into chunks, where each chunk is a collection of numbers
-        chunks = []
-        for byte_chunk in byte_chunks:
-            chunks.append(chunk_to_points(byte_chunk))
+        chunks = [chunk_to_points(byte_chunk) for byte_chunk in byte_chunks]
         # Compute the polynomials representing the ith number in each chunk
         polys = [poly_utils.lagrange_interp([chunk[i] for chunk in chunks], list(range(len(chunks)))) for i in range(POINTS_IN_CHUNK)]
         # Use the polynomials to extend the chunks
-        new_chunks = []
-        for x in range(len(chunks), len(chunks) * 2):
-            new_chunks.append(points_to_chunk([poly_utils.eval_poly_at(poly, x) for poly in polys]))
+        new_chunks = [
+            points_to_chunk([poly_utils.eval_poly_at(poly, x) for poly in polys])
+            for x in range(len(chunks), len(chunks) * 2)
+        ]
+
         # Total length of data including new points
         self.length = len(byte_chunks + new_chunks)
         self.extended_data = byte_chunks + new_chunks
@@ -114,10 +114,7 @@ class Prover():
 def verify_proof(merkle_root, proof, index):
     h = sha3(proof[0])
     for p in proof[1:]:
-        if index % 2:
-            h = sha3(p + h)
-        else:
-            h = sha3(h + p)
+        h = sha3(p + h) if index % 2 else sha3(h + p)
         index //= 2
     return h == merkle_root
 

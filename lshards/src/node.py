@@ -61,7 +61,7 @@ class Node():
         self.id = self.comm.Get_rank()
         #self.nb_notaries = nb_notaries
         self.nb_notaries = self.comm.Get_size()
-        self.log_file = "results/" + str(self.id) + ".txt"
+        self.log_file = f"results/{str(self.id)}.txt"
         try:
             os.remove(self.log_file)
         except:
@@ -92,9 +92,8 @@ class Node():
     def log(self, words, lvl=3, all=False):
         #if "Tick:" != words[:5] or self.id == 0:
         if lvl >= 2:
-            f = open(self.log_file, "a")
-            f.write("[%04d] : %s\n" % (self.globalTime, words))
-            f.close()
+            with open(self.log_file, "a") as f:
+                f.write("[%04d] : %s\n" % (self.globalTime, words))
 
 
     ##  This method generates the list of peers for each peer.
@@ -171,10 +170,9 @@ class Node():
         elif isinstance(obj, BlockMakingRequest):
             if self.beacon_chain[-1] == obj.parent:
                 mc_ref = self.blocks[obj.parent]
-                for i in range(2):
+                for _ in range(2):
                     if mc_ref.number == 0:
                         break
-                    #mc_ref = self.blocks[mc_ref].parent_hash
                 x = BeaconBlock(self.blocks[obj.parent], self.id, self.ts,
                                 self.sigs[obj.parent] if obj.parent in self.sigs else [],
                                 self.blocks[self.main_chain[-1]], self.nb_notaries, self.nb_shards)
@@ -335,10 +333,11 @@ class Node():
         self.log("Processing beacon block %s" % to_hex(block.hash[:4]), lvl=3)
         self.blocks[block.hash] = block
         # Am I a notary, and is the block building on the head? Then broadcast a signature.
-        if block.parent_hash == self.beacon_chain[-1] or self.careless:
-            if self.id in block.notaries:
-                self.broadcast(Sig(self.id, block))
-                self.on_receive(Sig(self.id, block))
+        if (
+            block.parent_hash == self.beacon_chain[-1] or self.careless
+        ) and self.id in block.notaries:
+            self.broadcast(Sig(self.id, block))
+            self.on_receive(Sig(self.id, block))
         # Check for sigs, add to head?, make a block?
         if len(self.sigs.get(block.hash, [])) >= block.notary_req:
             if block.number > self.blocks[self.beacon_chain[-1]].number and block.main_chain_ref in self.main_chain:
@@ -363,20 +362,20 @@ class Node():
         #self.print_chain_digest() # <+++
         #self.print_sig_digest() # <+++
         # Add to head? Make a block?
-        if sig.target_hash in self.blocks:
-            #if type(sig.target_hash).__name__ != 'bytes' : # This is necessary for Python2
-            #    sig.target_hash = sig.target_hash.encode('utf-8')
-            #self.log("Received signature %s with target %s" % (to_hex(sig.hash[:4]), to_hex(sig.target_hash[:4])))
-            if len(self.sigs[sig.target_hash]) == self.blocks[sig.target_hash].notary_req:
-                self.log("Signature requirements fulfilled!")
-                block = self.blocks[sig.target_hash]
-                if block.number > self.blocks[self.beacon_chain[-1]].number and block.main_chain_ref in self.main_chain:
-                    self.change_beacon_head(block)
-                if self.id in block.child_proposers:
-                    my_index = block.child_proposers.index(self.id)
-                    target_ts = block.ts + self.base_ts_diff + my_index * self.skip_ts_diff
-                    self.log("Making block request for %.1f" % target_ts)
-                    self.add_to_timequeue(BlockMakingRequest(block.hash, target_ts))
+        if (
+            sig.target_hash in self.blocks
+            and len(self.sigs[sig.target_hash])
+            == self.blocks[sig.target_hash].notary_req
+        ):
+            self.log("Signature requirements fulfilled!")
+            block = self.blocks[sig.target_hash]
+            if block.number > self.blocks[self.beacon_chain[-1]].number and block.main_chain_ref in self.main_chain:
+                self.change_beacon_head(block)
+            if self.id in block.child_proposers:
+                my_index = block.child_proposers.index(self.id)
+                target_ts = block.ts + self.base_ts_diff + my_index * self.skip_ts_diff
+                self.log("Making block request for %.1f" % target_ts)
+                self.add_to_timequeue(BlockMakingRequest(block.hash, target_ts))
         # Rebroadcast
         self.broadcast(sig)
 
@@ -467,10 +466,9 @@ class Node():
                     self.on_receive(obj)
             del self.objqueue[self.globalTime]
 
-        if self.ts == 0:
-            if self.id in self.blocks[self.beacon_chain[0]].notaries:
-                self.broadcast(Sig(self.id, self.blocks[self.beacon_chain[0]]))
-                self.on_receive(Sig(self.id, self.blocks[self.beacon_chain[0]]))
+        if self.ts == 0 and self.id in self.blocks[self.beacon_chain[0]].notaries:
+            self.broadcast(Sig(self.id, self.blocks[self.beacon_chain[0]]))
+            self.on_receive(Sig(self.id, self.blocks[self.beacon_chain[0]]))
         self.ts += 0.1
         if self.ts % 10 == 0:
             self.log("Tick: %.1f" % self.ts, lvl=3)
@@ -492,15 +490,13 @@ class Node():
     ##  This method prints block progress information on a file
     #   @param  self     Pointer to this node
     def logProgress(self):
-        resFile = "results/" + str(self.id) + ".txt"
-        f = open(resFile, "a")
-        f.write("Main chain head: %d \n" % self.blocks[self.main_chain[-1]].number)
-        f.write("Total main chain blocks received: %d \n" % (len([b for b in self.blocks.values() if isinstance(b, MainChainBlock)]) - 1))
-        f.write("Beacon head: %d \n" % self.blocks[self.beacon_chain[-1]].number)
-        f.write("Total beacon blocks received: %d \n" % (len([b for b in self.blocks.values() if isinstance(b, BeaconBlock)]) - 1))
-        f.write("Total beacon blocks received and signed: %d \n" % (len([b for b in self.blocks.keys() if b in self.sigs and len(self.sigs[b]) >= self.blocks[b].notary_req]) - 1))
-        f.write("Shard heads: %r \n" % [self.blocks[x[-1]].number for x in self.shard_chains])
-        #f.write("Total shard blocks received: %r \n" % [len([b for b in self.blocks.values() if isinstance(b, ShardCollation) and b.shard_id == i]) - 1 for i in range(nb_shards)])
-        f.close()
+        resFile = f"results/{str(self.id)}.txt"
+        with open(resFile, "a") as f:
+            f.write("Main chain head: %d \n" % self.blocks[self.main_chain[-1]].number)
+            f.write("Total main chain blocks received: %d \n" % (len([b for b in self.blocks.values() if isinstance(b, MainChainBlock)]) - 1))
+            f.write("Beacon head: %d \n" % self.blocks[self.beacon_chain[-1]].number)
+            f.write("Total beacon blocks received: %d \n" % (len([b for b in self.blocks.values() if isinstance(b, BeaconBlock)]) - 1))
+            f.write("Total beacon blocks received and signed: %d \n" % (len([b for b in self.blocks.keys() if b in self.sigs and len(self.sigs[b]) >= self.blocks[b].notary_req]) - 1))
+            f.write("Shard heads: %r \n" % [self.blocks[x[-1]].number for x in self.shard_chains])
 
 

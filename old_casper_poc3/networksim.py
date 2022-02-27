@@ -35,7 +35,7 @@ class NetworkSimulator():
         self.time += 1
 
     def run(self, steps):
-        for i in range(steps):
+        for _ in range(steps):
             self.tick()
 
     def broadcast(self, sender, obj):

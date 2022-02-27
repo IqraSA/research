@@ -41,8 +41,8 @@ class Miner():
         for u in block["uncles"]:
             if u not in self.blocks:
                 addme = False
-        p = self.blocks[block["parent"]]
         if addme:
+            p = self.blocks[block["parent"]]
             self.blocks[block["id"]] = copy.deepcopy(block)
             # Each parent keeps track of its children, to help
             # facilitate the rule that a block must have N+ siblings

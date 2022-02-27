@@ -29,7 +29,7 @@ class ChildRequest(rlp.Serializable):
 
     @property
     def hash(self):
-        return sha3(self.prevhash + '::salt:jhfqou213nry138o2r124124')
+        return sha3(f'{self.prevhash}::salt:jhfqou213nry138o2r124124')
 
 ids = []
 

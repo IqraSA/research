@@ -19,7 +19,7 @@ def mkoffset(b):
 #   @param n    The notarie to plot its view of the chain
 def plotChain(n):
     G=nx.Graph()
-    fileName = "results/chain-" + str(n.id) + ".png"
+    fileName = f"results/chain-{str(n.id)}.png"
     for b in n.blocks.values():
         if b.number > 0:
             if isinstance(b, BeaconBlock):
@@ -56,6 +56,6 @@ def plotNetwork(peers, dir):
             G.add_edge(str(peer), str(p.id))
     nx.draw(G, with_labels=True)
     plt.axis("off")
-    plt.savefig(dir+"/network.png", bbox_inches="tight")
+    plt.savefig(f'{dir}/network.png', bbox_inches="tight")
 
 

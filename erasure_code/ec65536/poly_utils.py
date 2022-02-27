@@ -1,7 +1,7 @@
 modulus_poly = [1, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 1, 0, 1, 0, 0, 1,
                 1]
-modulus_poly_as_int = sum([(v << i) for i, v in enumerate(modulus_poly)])
+modulus_poly_as_int = sum(v << i for i, v in enumerate(modulus_poly))
 degree = len(modulus_poly) - 1
 
 two_to_the_degree = 2**degree
@@ -92,7 +92,7 @@ def lagrange_interp(pieces, xs):
     denoms = [eval_poly_at(nums[i], xs[i]) for i in range(len(xs))]
     # Generate output polynomial, which is the sum of the per-value numerator
     # polynomials rescaled to have the right y values
-    b = [0 for p in pieces]
+    b = [0 for _ in pieces]
     for i in range(len(xs)):
         log_yslice = glogtable[pieces[i]] - glogtable[denoms[i]] + two_to_the_degree_m1
         for j in range(len(pieces)):

@@ -51,10 +51,7 @@ def extract_scenario(chain):
                 i += 1
                 chain.extend_me(0)
             o.append(i)
-    if tuple(o) in scenarios:
-        return scenarios.index(tuple(o))
-    else:
-        return 0
+    return scenarios.index(tuple(o)) if tuple(o) in scenarios else 0
 
 # Class to represent simulated chains
 class Chain():

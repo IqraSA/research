@@ -86,7 +86,7 @@ def inv(a, n):
 LENPRIMES = 1000
 primes = []
 r = 2**31 - 1
-for i in range(LENPRIMES):
+for _ in range(LENPRIMES):
     r += 2
     while pow(2, r, r) != 2: r += 2
     primes.append(r)

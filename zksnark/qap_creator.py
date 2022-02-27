@@ -34,7 +34,7 @@ def div_polys(a, b):
 
 # Evaluate a polynomial at a point
 def eval_poly(poly, x):
-    return sum([poly[i] * x**i for i in range(len(poly))])
+    return sum(poly[i] * x**i for i in range(len(poly)))
 
 # Make a polynomial which is zero at {1, 2 ... total_pts}, except
 # for `point_loc` where the value is `height`

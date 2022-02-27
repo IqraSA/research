@@ -56,7 +56,7 @@ class Miner():
     # Mine a block
     def mine(self):
         HEAD = self.blocks[self.head]
-        for i in range(self.backward):
+        for _ in range(self.backward):
             HEAD = self.blocks[HEAD["parent"]]
         H = HEAD
         h = self.blocks[self.blocks[self.head]["parent"]]
@@ -66,7 +66,7 @@ class Miner():
         # uncles of those previous blocks
         u = {}
         notu = {}
-        for i in range(UNCLE_DEPTH - self.backward):
+        for _ in range(UNCLE_DEPTH - self.backward):
             for c in self.children.get(h["id"], {}):
                 u[c] = True
             notu[H["id"]] = True

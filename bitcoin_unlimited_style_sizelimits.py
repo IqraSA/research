@@ -20,8 +20,7 @@ PROPTIME_FACTOR = 1
 # (default limit, n-block limit, acceptance depth, creation limit)
 strategies = []
 for i in range(4):
-    for j in range(4):
-        strategies.append([2 + i * 2, 100, 3, 10 + j * 4])
+    strategies.extend([2 + i * 2, 100, 3, 10 + j * 4] for j in range(4))
 
 class Block():
     def __init__(self, parent, size, fees, miner):

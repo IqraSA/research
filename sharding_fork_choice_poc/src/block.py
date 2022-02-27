@@ -26,9 +26,9 @@ class MainChainBlock():
     ##  This method return a printable string of this block
     #   @param self     Pointer to this block in the main chain.
     def __str__(self):
-        sti = " < Number : " + str(self.number)
-        sti += ", parent : " + str(self.parent_hash)
-        sti += ", pownonce : " + str(self.pownonce) + "> "
+        sti = f" < Number : {str(self.number)}"
+        sti += f", parent : {str(self.parent_hash)}"
+        sti += f", pownonce : {str(self.pownonce)}> "
         return sti
 
 
@@ -75,22 +75,22 @@ class BeaconBlock():
         self.notary_req = 0 if first else min_sample
         v = hash_to_int(sha3(self.contents + b':n'))
         self.notaries = []
-        for i in range(sample if first else sample):
+        for _ in range(sample if first else sample):
             self.notaries.append(v % nb_notaries)
             v //= nb_notaries
 
         # Calculate shard proposers
         v = hash_to_int(sha3(self.contents + b':s'))
         self.shard_proposers = []
-        for i in range(nb_shards):
+        for _ in range(nb_shards):
             self.shard_proposers.append(v % nb_notaries)
             v //= nb_notaries
 
     ##  This method return a printable string of this block
     #   @param self     Pointer to this block in the main chain.
     def __str__(self):
-        sti = " < Number : " + str(self.number)
-        sti += ", parent : " + str(self.parent_hash) + "> "
+        sti = f" < Number : {str(self.number)}"
+        sti += f", parent : {str(self.parent_hash)}> "
         return sti
 
 

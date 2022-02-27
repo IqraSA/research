@@ -203,27 +203,22 @@ class Keccak:
     nr_bytes_filled = my_string_length // 8
     nbr_bits_filled = my_string_length % 8
     l = my_string_length % n
+    if (nbr_bits_filled == 0):
+      my_byte = 0
+    else:
+      my_byte = int(my_string[nr_bytes_filled * 2:nr_bytes_filled * 2 + 2], 16)
+    my_byte >>= 8 - nbr_bits_filled
     if ((n - 8) <= l <= (n - 2)):
-      if (nbr_bits_filled == 0):
-        my_byte = 0
-      else:
-        my_byte = int(my_string[nr_bytes_filled * 2:nr_bytes_filled * 2 + 2], 16)
-      my_byte = (my_byte >> (8 - nbr_bits_filled))
       my_byte = my_byte + 2 ** (nbr_bits_filled) + 2 ** 7
       my_byte = "%02X" % my_byte
-      my_string = my_string[0:nr_bytes_filled * 2] + my_byte
+      my_string = my_string[:nr_bytes_filled * 2] + my_byte
     else:
-      if (nbr_bits_filled == 0):
-        my_byte = 0
-      else:
-        my_byte = int(my_string[nr_bytes_filled * 2:nr_bytes_filled * 2 + 2], 16)
-      my_byte = (my_byte >> (8 - nbr_bits_filled))
-      my_byte = my_byte + 2 ** (nbr_bits_filled)
+      my_byte += 2 ** (nbr_bits_filled)
       my_byte = "%02X" % my_byte
-      my_string = my_string[0:nr_bytes_filled * 2] + my_byte
-      while((8 * len(my_string) // 2) % n < (n - 8)):
-        my_string = my_string + '00'
-      my_string = my_string + '80'
+      my_string = my_string[:nr_bytes_filled * 2] + my_byte
+      while ((8 * len(my_string) // 2) % n < (n - 8)):
+        my_string = f'{my_string}00'
+      my_string = f'{my_string}80'
 
     return my_string
 
@@ -285,7 +280,7 @@ class Keccak:
     while outputLength > 0:
       string = _convertTableToStr(self.S, self.w)
       # Read the first 'r' bits of the state
-      Z = Z + string[:self.r * 2 // 8]
+      Z += string[:self.r * 2 // 8]
       outputLength -= self.r
       if outputLength > 0:
         S = KeccakF(S, verbose)

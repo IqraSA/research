@@ -41,7 +41,7 @@ gfs = (gf1, gf2, gf3, gf4, gf5, gf6, gf7)
 
 # Get the maximum griefing factor of a set of parameters
 def getmax(*args):
-    return max([f(*args) for f in gfs])
+    return max(f(*args) for f in gfs)
 
 # Get the maximum <50% griefing factor, and enforce a bound
 # of MAX_CENSOR_GF on the griefing factor of >50% coalitions

@@ -60,8 +60,8 @@ for _ in range(3):
         for k, v in sorted(kvpairs):
             if k[0] == byte:
                 assert subtrie.get(k) == v
-            assert subtrie.get(bytearray([byte] + [0] * 19)) == None
-            assert subtrie.get(bytearray([byte] + [255] * 19)) == None
+            assert subtrie.get(bytearray([byte] + [0] * 19)) is None
+            assert subtrie.get(bytearray([byte] + [255] * 19)) is None
     for k, v in shuffle_in_place(kvpairs):
         t.update(k, b'')
         if not random.randrange(100):

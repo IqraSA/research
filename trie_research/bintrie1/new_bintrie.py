@@ -39,8 +39,7 @@ def parse_node(node):
 def encode_kv_node(keypath, node):
     assert keypath
     assert len(node) == 32
-    o = bytes([KV_TYPE]) + encode_bin_path(keypath) + node
-    return o
+    return bytes([KV_TYPE]) + encode_bin_path(keypath) + node
 
 # Serializes a branch node (ie. a node with 2 children)
 def encode_branch_node(left, right):
@@ -67,11 +66,7 @@ def _get(db, node, keypath):
         # Keypath too short
         if not keypath:
             return None
-        if keypath[:len(L)] == L:
-            return _get(db, R, keypath[len(L):])
-        else:
-            return None
-    # Branch node descend
+        return _get(db, R, keypath[len(L):]) if keypath[:len(L)] == L else None
     elif nodetype == BRANCH_TYPE:
         # Keypath too short
         if not keypath:
@@ -96,7 +91,6 @@ def _update(db, node, keypath, val):
         if keypath:
             raise Exception("Existing kv pair is being effaced because it's key is the prefix of the new key")
         return hash_and_save(db, encode_leaf_node(val)) if val else b''
-    # node is a key-value node
     elif nodetype == KV_TYPE:
         # Keypath too short
         if not keypath:
@@ -116,16 +110,6 @@ def _update(db, node, keypath, val):
                 return hash_and_save(db, encode_kv_node(L + subL, subR))
             else:
                 return hash_and_save(db, encode_kv_node(L, o)) if o else b''
-        # Keypath prefixes don't match. Here we will be converting a key-value node
-        # of the form (k, CHILD) into a structure of one of the following forms:
-        # i.   (k[:-1], (NEWCHILD, CHILD))
-        # ii.  (k[:-1], ((k2, NEWCHILD), CHILD))
-        # iii. (k1, ((k2, CHILD), NEWCHILD))
-        # iv.  (k1, ((k2, CHILD), (k2', NEWCHILD))
-        # v.   (CHILD, NEWCHILD)
-        # vi.  ((k[1:], CHILD), (k', NEWCHILD))
-        # vii. ((k[1:], CHILD), NEWCHILD)
-        # viii (CHILD, (k[1:], NEWCHILD))
         else:
             cf = common_prefix_length(L, keypath[:len(L)])
             # New key-value pair can not contain empty value
@@ -156,14 +140,7 @@ def _update(db, node, keypath, val):
             # Case 1: keypath prefixes match in the first bit, so we still need
             # a kv node at the top
             # (i) (ii) (iii) (iv)
-            if cf:
-                return hash_and_save(db, encode_kv_node(L[:cf], newsub))
-            # Case 2: keypath prefixes diverge in the first bit, so we replace the
-            # kv node with a branch node
-            # (v) (vi) (vii) (viii)
-            else:
-                return newsub
-    # node is a branch node
+            return hash_and_save(db, encode_kv_node(L[:cf], newsub)) if cf else newsub
     elif nodetype == BRANCH_TYPE:
         # Keypath too short
         if not keypath:
@@ -174,18 +151,15 @@ def _update(db, node, keypath, val):
             newL = _update(db, L, keypath[1:], val)
         else:
             newR = _update(db, R, keypath[1:], val)
-        # Compress branch node into kv node
-        if not newL or not newR:
-            subL, subR, subnodetype = parse_node(db.get(newL or newR))
-            first_bit = b1 if newR else b0
-            # Compress (k1, (k2, NODE)) -> (k1 + k2, NODE)
-            if subnodetype == KV_TYPE:
-                return hash_and_save(db, encode_kv_node(first_bit + subL, subR))
-            # kv node pointing to a branch node
-            elif subnodetype == BRANCH_TYPE or subnodetype == LEAF_TYPE:
-                return hash_and_save(db, encode_kv_node(first_bit, newL or newR))
-        else:
+        if newL and newR:
             return hash_and_save(db, encode_branch_node(newL, newR))
+        subL, subR, subnodetype = parse_node(db.get(newL or newR))
+        first_bit = b1 if newR else b0
+            # Compress (k1, (k2, NODE)) -> (k1 + k2, NODE)
+        if subnodetype == KV_TYPE:
+            return hash_and_save(db, encode_kv_node(first_bit + subL, subR))
+        elif subnodetype in [BRANCH_TYPE, LEAF_TYPE]:
+            return hash_and_save(db, encode_kv_node(first_bit, newL or newR))
     raise Exception("How did I get here?")
 
 # Prints a tree, and checks that all invariants check out

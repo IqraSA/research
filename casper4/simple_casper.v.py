@@ -171,7 +171,7 @@ def initialize_epoch(epoch: num):
     # Compute square root factor
     ether_deposited_as_number = self.total_deposits[self.dynasty] / as_wei_value(1, ether)
     sqrt = ether_deposited_as_number / 2.0
-    for i in range(20):
+    for _ in range(20):
         sqrt = (sqrt + (ether_deposited_as_number / sqrt)) / 2
     # Reward factor is the reward given for preparing or committing as a
     # fraction of that validator's deposit size
@@ -235,21 +235,14 @@ def flick_status(logout_msg: bytes <= 1024):
         old_ds = self.validators[validator_index].dynasty_end
         new_ds = self.dynasty + 2
         for i in range(old_ds / 256, old_ds / 256 + 16):
-            if old_ds > i * 256:
-                s = old_ds % 256
-            else:
-                s = 0
-            if new_ds < i * 256 + 256:
-                e = new_ds % 256
-            else:
-                e = 256
+            s = old_ds % 256 if old_ds > i * 256 else 0
+            e = new_ds % 256 if new_ds < i * 256 + 256 else 256
             self.dynasty_mask[validator_index][i] = num256_sub(shift(as_num256(1), e), shift(as_num256(1), s))
             if e < 256:
                 break
         self.validators[validator_index].dynasty_start = new_ds
         self.validators[validator_index].dynasty_end = 1000000000000000000000000000000
         self.second_next_dynasty_wei_delta += self.validators[validator_index].deposit
-    # Logging out
     else:
         # Check that we haven't already withdrawn
         assert self.validators[validator_index].dynasty_end >= self.dynasty + 2
@@ -405,11 +398,9 @@ def commit(commit_msg: bytes <= 1024):
     assert prev_commit_epoch < epoch
     self.validators[validator_index].prev_commit_epoch = epoch
     this_validators_deposit = self.validators[validator_index].deposit
-    # Pay the reward if the blockhash is correct
-    if True:  #if blockhash(epoch * self.epoch_length) == hash:
-        reward = floor(this_validators_deposit * self.reward_factor)
-        self.validators[validator_index].deposit += reward
-        self.total_deposits[self.dynasty] += reward
+    reward = floor(this_validators_deposit * self.reward_factor)
+    self.validators[validator_index].deposit += reward
+    self.total_deposits[self.dynasty] += reward
     # Can't commit for this epoch again
     # self.validators[validator_index].max_committed = epoch
     # Record that this commit took place

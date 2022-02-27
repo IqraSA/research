@@ -22,10 +22,7 @@ def exponential_distribution(mean):
 
 def convolve(*args):
     def f():
-        total = 0
-        for arg in args:
-            total += arg()
-        return total
+        return sum(arg() for arg in args)
 
     return f
 

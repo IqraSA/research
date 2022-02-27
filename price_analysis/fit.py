@@ -12,8 +12,11 @@ txfees = [float(q[4]) for q in o]
 
 def simple_estimator(fac):
     o = [1]
-    for i in range(1, len(diffs)):
-        o.append(o[-1] * diffs[i] * 1.0 / diffs[i-1] / fac)
+    o.extend(
+        o[-1] * diffs[i] * 1.0 / diffs[i - 1] / fac
+        for i in range(1, len(diffs))
+    )
+
     return o
 
 
@@ -34,7 +37,7 @@ def diff_estimator(fac, dw, mf, exp=1):
     derivs = [0] * 14
     for i in range(14, len(diffs)):
         derivs.append(diffs[i] - diffs[i - 14])
-    for i in range(0, 14):
+    for i in range(14):
         derivs[i] = derivs[14]
     vals = [max(diffs[i] + derivs[i] * dw, diffs[i] * mf) for i in range(len(diffs))]
     for i in range(1, len(diffs)):
@@ -50,7 +53,7 @@ def diff_estimator(fac, dw, mf, exp=1):
 def tx_diff_estimator(fac, dw, mf, lin=1, exp=1):
     fac = (fac - 1) or 0.000001
     o = [1]
-    initavg = sum([txs[i] for i in range(5)]) / 5.0
+    initavg = sum(txs[i] for i in range(5)) / 5.0
     txavgs = [initavg] * 5
     for i in range(5, len(txs)):
         txavgs.append(txavgs[-1] * 0.8 + txs[i] * 0.2)
@@ -58,7 +61,7 @@ def tx_diff_estimator(fac, dw, mf, lin=1, exp=1):
     derivs = [0] * 14
     for i in range(14, len(txavgs)):
         derivs.append(txavgs[i] - txavgs[i - 14])
-    for i in range(0, 14):
+    for i in range(14):
         derivs[i] = derivs[14]
     vals = [max(txavgs[i] + derivs[i] * dw, txavgs[i] * mf) for i in range(len(txavgs))]
     for i in range(1, len(txavgs)):
@@ -78,11 +81,11 @@ def tx_diff_estimator(fac, dw, mf, lin=1, exp=1):
 
 def minimax_fee_estimator(fac, days):
     o = [1]
-    initavg = sum([txs[i] for i in range(int(days))]) * 1.0 / days
+    initavg = sum(txs[i] for i in range(int(days))) * 1.0 / days
     txavgs = [initavg] * int(days)
     for i in range(int(days), len(txs)):
         txavgs.append(txavgs[-1] * 1.0 * (days-1) / days + txs[i] * 1.0 / days)
-    initavg2 = sum([txfees[i] for i in range(int(days))]) * 1.0 / days
+    initavg2 = sum(txfees[i] for i in range(int(days))) * 1.0 / days
     txfeeavgs = [initavg2] * int(days)
     for i in range(int(days), len(txs)):
         txfeeavgs.append(txfeeavgs[-1] * 1.0 * (days-1) / days + txfees[i] * 1.0 / days)
@@ -106,12 +109,12 @@ def ndiff_estimator(*args):
         derivs = [0] * 14
         for i in range(14, len(diffs)):
             derivs.append(ds[-1][i] - ds[-1][i - 14])
-        for i in range(0, 14):
+        for i in range(14):
             derivs[i] = derivs[14]
         ds.append(derivs)
     vals = []
     for i in range(len(diffs)):
-        q = ds[0][i] + sum([ds[j+1][i] * dws[j] for j in range(len(dws))])
+        q = ds[0][i] + sum(ds[j+1][i] * dws[j] for j in range(len(dws)))
         vals.append(max(q, ds[0][i] * mf))
     for i in range(1, len(diffs)):
         if vals[i] * 1.0 / vals[i-1] > fac:
@@ -128,7 +131,7 @@ def dual_threshold_estimator(fac1, fac2, dmul):
     derivs = [0] * 14
     for i in range(14, len(diffs)):
         derivs.append(diffs[i] - diffs[i - 14])
-    for i in range(0, 14):
+    for i in range(14):
         derivs[i] = derivs[14]
     for i in range(1, len(diffs)):
         if diffs[i] * 1.0 / diffs[i-1] > fac1 and derivs[i] * 1.0 / derivs[i-1] > fac2:
@@ -144,10 +147,9 @@ infinity *= 2
 
 
 def evaluate_estimates(estimates, crossvalidate=False):
-    sz = len(prices) if crossvalidate else 780
-    sqdiffsum = 0
     # compute average
     tot = 0
+    sz = len(prices) if crossvalidate else 780
     for i in range(sz):
         if estimates[i] == infinity or estimates[i] <= 0:
             return 10**20
@@ -155,9 +157,7 @@ def evaluate_estimates(estimates, crossvalidate=False):
     avg = 2.718281828459 ** (tot * 1.0 / sz)
     if avg <= 0:
         return 10**20
-    for i in range(1, sz):
-        sqdiffsum += math.log(prices[i] / estimates[i] / avg) ** 2
-    return sqdiffsum
+    return sum(math.log(prices[i] / estimates[i] / avg) ** 2 for i in range(1, sz))
 
 
 # Simulated annealing optimizer
